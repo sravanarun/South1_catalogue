@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>South1 Stock Visual Inspector (Auto)</title>
+  <!-- Decompression & Decryption Engines -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
@@ -116,7 +118,7 @@
 </head>
 <body>
 
-  <!-- Mandatory PIN Prompt -->
+  <!-- Mandatory Password Prompt -->
   <div id="authOverlay">
     <div class="auth-card">
       <h3>South1 Secured Access</h3>
@@ -254,7 +256,7 @@
       if (!isShown) menu.classList.add('show');
     }
 
-    // Auto-fetch the encrypted file immediately in background
+    // Auto-fetch data.enc on load
     window.addEventListener('DOMContentLoaded', async () => {
       try {
         const res = await fetch(`data.enc?t=${Date.now()}`);
@@ -270,27 +272,55 @@
       errBox.style.display = 'none';
 
       try {
+        // 1. AES Decrypt
         const bytes = CryptoJS.AES.decrypt(encryptedData, pin);
-        const decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
-        if (!decryptedStr) throw new Error("Incorrect Password");
+        const base64Compressed = bytes.toString(CryptoJS.enc.Utf8);
+        if (!base64Compressed) throw new Error("Incorrect Password");
 
-        rawData = JSON.parse(decryptedStr);
-        rawData.forEach(r => {
-          r._variant = String(r['Variant'] || '').trim();
-          r._design = r._variant.length >= 9 ? r._variant.slice(2, 9) : r._variant;
-          r._store = String(r['Storecode'] || '').trim();
-          r._cat = String(r['Product category'] || '').trim();
-          r._cluster = String(r['CLUSTER'] || '').trim();
-          r._ag = String(r['AG'] || '').trim();
-          r._size = String(r['Size'] || '').trim();
-          r._karat = String(r['Karat'] || '').trim();
-          r._prolif = String(r['Prolif'] || '').trim();
-          r._wt = parseFloat(r['WT']) || 0;
+        // 2. Pako Ungzip Decompress
+        const binaryStr = atob(base64Compressed);
+        const len = binaryStr.length;
+        const bytesArr = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytesArr[i] = binaryStr.charCodeAt(i);
+        }
+        const decompressedJsonStr = pako.ungzip(bytesArr, { to: 'string' });
+
+        // 3. Parse JSON & Standardize Columns
+        const parsedRows = JSON.parse(decompressedJsonStr);
+        rawData = [];
+
+        parsedRows.forEach(r => {
+          const getVal = (colNames) => {
+            for (const name of colNames) {
+              for (const key of Object.keys(r)) {
+                if (key.trim().toLowerCase() === name.toLowerCase()) return String(r[key] || '').trim();
+              }
+            }
+            return '';
+          };
+
+          const variant = getVal(['Variant', 'VARIANT', 'Variant Code', 'SKU']);
+          if (!variant) return;
+
+          r._variant = variant;
+          r._design = variant.length >= 9 ? variant.slice(2, 9) : variant;
+          r._store = getVal(['Storecode', 'Store Code', 'STORECODE', 'STORE']);
+          r._cat = getVal(['Product category', 'PRODUCT CATEGORY', 'Category', 'Cat']);
+          r._cluster = getVal(['CLUSTER', 'Cluster']);
+          r._ag = getVal(['AG', 'AG Group', 'AG_GROUP']);
+          r._size = getVal(['Size', 'SIZE']);
+          r._karat = getVal(['Karat', 'KARAT']);
+          r._prolif = getVal(['Prolif', 'PROLIF']);
+          r._wt = parseFloat(getVal(['WT', 'Weight', 'Gross Wt'])) || 0;
+
+          rawData.push(r);
         });
 
         document.getElementById('authOverlay').style.display = 'none';
         applyFilters();
       } catch (e) {
+        console.error(e);
         errBox.style.display = 'block';
       }
     }
@@ -485,7 +515,16 @@
     function handleImageError() {
       document.getElementById('imgLoader').style.display = 'none';
       document.getElementById('itemImg').style.display = 'none';
-      document.getElementById('imgFallback').style.display = 'block';
+      const fallback = document.getElementById('imgFallback');
+      fallback.style.display = 'flex';
+      fallback.style.flexDirection = 'column';
+      fallback.style.alignItems = 'center';
+      fallback.style.justifyContent = 'center';
+      fallback.innerHTML = `
+        <div style="font-size: 2.5rem; margin-bottom: 8px;">🖼️</div>
+        <div style="font-weight: 700; color: #334155;">No Catalog Image Found</div>
+        <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">Design: ${filteredGroups[currentIdx]?.design || 'N/A'}</div>
+      `;
     }
 
     function toggleConfirmCurrent() {
