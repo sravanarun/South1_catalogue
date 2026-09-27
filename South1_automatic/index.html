@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>South1 Stock Visual Inspector (Auto)</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --bg: #090e1a;
+      --card-bg: #131c2e;
+      --panel-bg: #0f172a;
+      --border: #22324e;
+      --primary: #38bdf8;
+      --primary-hover: #0284c7;
+      --accent: #10b981;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); margin: 0; padding: 16px 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+
+    /* Security Passcode Modal */
+    #authOverlay {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(9, 14, 26, 0.98); z-index: 99999; display: flex;
+      align-items: center; justify-content: center; flex-direction: column;
+    }
+    .auth-card {
+      background: #131c2e; border: 1px solid var(--border); padding: 30px;
+      border-radius: 12px; max-width: 360px; width: 90%; text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+    }
+    .auth-card h3 { color: var(--primary); margin: 0 0 8px 0; }
+    .auth-card p { color: var(--text-muted); font-size: 0.82rem; margin: 0 0 18px 0; }
+    .auth-input {
+      width: 100%; padding: 10px 14px; background: #090e1a; border: 1px solid #334155;
+      color: #fff; border-radius: 6px; font-size: 1rem; text-align: center;
+      letter-spacing: 2px; outline: none; margin-bottom: 12px;
+    }
+    .auth-input:focus { border-color: var(--primary); }
+    .auth-btn {
+      width: 100%; padding: 10px; background: #0284c7; border: none;
+      color: #fff; border-radius: 6px; font-weight: 700; cursor: pointer;
+    }
+    .auth-btn:hover { background: #0369a1; }
+    .auth-err { color: #ef4444; font-size: 0.8rem; margin-top: 10px; display: none; }
+
+    /* App UI */
+    .header { width: 100%; max-width: 1250px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .header h2 { margin: 0; font-size: 1.5rem; color: var(--primary); }
+    .control-panel { width: 100%; max-width: 1250px; background: var(--panel-bg); padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; width: 100%; }
+    .filter-box { display: flex; flex-direction: column; gap: 3px; position: relative; }
+    .filter-label { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+    .dropdown-btn { background: #090e1a; color: var(--text); border: 1px solid var(--border); padding: 7px 10px; border-radius: 6px; font-size: 0.78rem; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dropdown-btn:hover { border-color: var(--primary); }
+    .dropdown-btn::after { content: "▾"; font-size: 0.75rem; margin-left: 6px; color: var(--text-muted); }
+    .dropdown-menu { display: none; position: absolute; top: calc(100% + 4px); left: 0; min-width: 230px; max-height: 280px; background: #0b1324; border: 1px solid var(--border); border-radius: 8px; z-index: 1000; flex-direction: column; padding: 8px; }
+    .dropdown-menu.show { display: flex; }
+    .dropdown-search { background: #090e1a; border: 1px solid var(--border); color: #fff; padding: 6px 8px; border-radius: 4px; font-size: 0.76rem; margin-bottom: 6px; outline: none; }
+    .dropdown-list { overflow-y: auto; display: flex; flex-direction: column; gap: 3px; max-height: 190px; }
+    .dropdown-item { display: flex; align-items: center; gap: 6px; font-size: 0.76rem; cursor: pointer; padding: 4px 6px; border-radius: 4px; }
+    .dropdown-item:hover { background: #1e293b; }
+
+    .weight-row { display: flex; gap: 6px; align-items: center; }
+    .weight-row select, .weight-row input { background: #090e1a; border: 1px solid var(--border); color: var(--text); padding: 6px 8px; border-radius: 6px; font-size: 0.78rem; outline: none; }
+    .weight-row select { width: 120px; }
+    .weight-row input { width: 75px; }
+
+    .stats-bar { width: 100%; max-width: 1250px; display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 12px; font-size: 0.8rem; color: var(--text-muted); }
+    .stats-bar b { color: var(--primary); }
+
+    .main-card { width: 100%; max-width: 1250px; background: var(--card-bg); border: 2px solid var(--border); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+    .card-top { display: flex; gap: 24px; align-items: stretch; }
+
+    /* Large 520px Image Section */
+    .image-viewer { width: 520px; height: 520px; min-width: 520px; background: #ffffff; border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 2px solid var(--border); position: relative; }
+    .image-viewer img { width: 100%; height: 100%; object-fit: contain; }
+    .img-loader { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #0284c7; font-size: 0.85rem; font-weight: 700; background: #ffffff; width: 100%; height: 100%; z-index: 5; }
+    .spinner { width: 44px; height: 44px; border: 4px solid #e2e8f0; border-top-color: #0284c7; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .img-fallback { color: #64748b; font-size: 0.9rem; text-align: center; display: none; padding: 20px; z-index: 6; }
+
+    .variant-details { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+    .sku-badge { font-size: 1.45rem; font-weight: 800; color: var(--primary); font-family: monospace; }
+    .ag-tag { font-size: 0.78rem; color: var(--text-muted); word-break: break-all; margin-top: 3px; }
+    .pill-selected { background: #065f46; color: #34d399; border: 1px solid #059669; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; }
+
+    .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .metric-box { background: #090e1a; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border); }
+    .metric-lbl { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
+    .metric-val { font-size: 0.95rem; font-weight: 700; color: #fff; margin-top: 2px; }
+
+    .section-title { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 5px; display: flex; justify-content: space-between; }
+    .chip-container { display: flex; gap: 6px; flex-wrap: wrap; max-height: 80px; overflow-y: auto; padding: 2px; }
+    .chip { padding: 4px 10px; border-radius: 6px; background: #090e1a; border: 1px solid var(--border); font-size: 0.75rem; font-weight: 600; cursor: pointer; }
+    .chip:hover { border-color: var(--primary); }
+    .chip.active { background: #0284c7; border-color: var(--primary); color: #fff; }
+
+    .detailed-tray { background: #0b1324; border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+    .tray-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; text-align: left; }
+    .tray-table th { color: var(--text-muted); padding: 5px 8px; border-bottom: 1px solid var(--border); font-size: 0.7rem; }
+    .tray-table td { padding: 5px 8px; border-bottom: 1px solid #1a2538; }
+
+    .actions-bar { width: 100%; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px; }
+    .btn-nav { background: #22324e; color: #fff; border: none; padding: 9px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
+    .btn-nav:disabled { opacity: 0.3; cursor: not-allowed; }
+    .btn-decision { display: flex; gap: 10px; }
+    .btn-action { padding: 9px 20px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; border: none; }
+    .btn-confirm { background: #16a34a; color: white; }
+    .btn-confirmed { background: #dc2626; color: white; }
+    .export-btn { background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+
+  <!-- Mandatory PIN Prompt -->
+  <div id="authOverlay">
+    <div class="auth-card">
+      <h3>South1 Secured Access</h3>
+      <p>Enter the store PIN to decrypt weekly stock data.</p>
+      <input type="password" id="passInput" class="auth-input" placeholder="Password" onkeydown="if(event.key==='Enter') decryptAndLoad()">
+      <button class="auth-btn" onclick="decryptAndLoad()">Unlock Catalog</button>
+      <div id="authErr" class="auth-err">Incorrect PIN. Access Denied.</div>
+    </div>
+  </div>
+
+  <div class="header">
+    <div>
+      <h2>South1 Stock Visual Inspector (Auto)</h2>
+      <p style="margin:2px 0 0 0; font-size:0.8rem; color:var(--text-muted);">Encrypted In-Memory Feed • Large Image Preview</p>
+    </div>
+    <button class="export-btn" onclick="exportSelected()">📥 Download Selected (<span id="exportCount">0</span>)</button>
+  </div>
+
+  <div class="control-panel">
+    <div class="filter-grid">
+      <div class="filter-box" id="fb-store"><span class="filter-label">Store Code</span><button class="dropdown-btn" onclick="toggleDropdown('store')">All Stores</button><div class="dropdown-menu" id="menu-store"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('store', this.value)"><div class="dropdown-list" id="list-store"></div></div></div>
+      <div class="filter-box" id="fb-cat"><span class="filter-label">Product Cat</span><button class="dropdown-btn" onclick="toggleDropdown('cat')">All Categories</button><div class="dropdown-menu" id="menu-cat"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('cat', this.value)"><div class="dropdown-list" id="list-cat"></div></div></div>
+      <div class="filter-box" id="fb-cluster"><span class="filter-label">Cluster</span><button class="dropdown-btn" onclick="toggleDropdown('cluster')">All Clusters</button><div class="dropdown-menu" id="menu-cluster"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('cluster', this.value)"><div class="dropdown-list" id="list-cluster"></div></div></div>
+      <div class="filter-box" id="fb-ag"><span class="filter-label">AG Group</span><button class="dropdown-btn" onclick="toggleDropdown('ag')">All AGs</button><div class="dropdown-menu" id="menu-ag"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('ag', this.value)"><div class="dropdown-list" id="list-ag"></div></div></div>
+      <div class="filter-box" id="fb-size"><span class="filter-label">Size</span><button class="dropdown-btn" onclick="toggleDropdown('size')">All Sizes</button><div class="dropdown-menu" id="menu-size"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('size', this.value)"><div class="dropdown-list" id="list-size"></div></div></div>
+      <div class="filter-box" id="fb-karat"><span class="filter-label">Karat</span><button class="dropdown-btn" onclick="toggleDropdown('karat')">All Karats</button><div class="dropdown-menu" id="menu-karat"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('karat', this.value)"><div class="dropdown-list" id="list-karat"></div></div></div>
+      <div class="filter-box" id="fb-prolif"><span class="filter-label">Prolif</span><button class="dropdown-btn" onclick="toggleDropdown('prolif')">All Prolifs</button><div class="dropdown-menu" id="menu-prolif"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('prolif', this.value)"><div class="dropdown-list" id="list-prolif"></div></div></div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--border);">
+      <span class="filter-label">Weight (WT) Condition:</span>
+      <div class="weight-row">
+        <select id="wtOp" onchange="handleWtOpChange()">
+          <option value="any">Any Weight</option>
+          <option value="eq">Equals (=)</option>
+          <option value="gt">Greater Than (&gt;)</option>
+          <option value="gte">Greater Than or Equal (&gt;=)</option>
+          <option value="lt">Less Than (&lt;)</option>
+          <option value="lte">Less Than or Equal (&lt;=)</option>
+          <option value="between">Between</option>
+        </select>
+        <input type="number" id="wtVal1" step="0.001" placeholder="Val" style="display:none;" oninput="applyFilters()">
+        <span id="wtBetweenSpan" style="display:none; font-size:0.8rem; color:var(--text-muted);">&amp;</span>
+        <input type="number" id="wtVal2" step="0.001" placeholder="Max" style="display:none;" oninput="applyFilters()">
+      </div>
+      <button style="margin-left: auto; background: #334155; border: none; color: #fff; padding: 6px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer;" onclick="resetAllFilters()">Reset Filters</button>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div>Filtered Unique Variants: <b id="statVariantCount">0</b></div>
+    <div>Viewing: <b id="statCurIdx">0</b> of <span id="statMaxIdx">0</span></div>
+    <div>Selected: <b id="statSelectedCount">0</b></div>
+  </div>
+
+  <div class="main-card">
+    <div class="card-top">
+      <div class="image-viewer">
+        <div class="img-loader" id="imgLoader"><div class="spinner"></div><span>Loading image...</span></div>
+        <img id="itemImg" src="" alt="Variant Preview" onload="handleImageSuccess()" onerror="handleImageError()">
+        <div id="imgFallback" class="img-fallback">Image not found on catalog server</div>
+      </div>
+
+      <div class="variant-details">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div><div class="sku-badge" id="dispVariant">---</div><div class="ag-tag" id="dispAG">---</div></div>
+          <div><span id="dispSelectedBadge" class="pill-selected" style="display:none;">CONFIRMED</span></div>
+        </div>
+
+        <div class="metric-grid">
+          <div class="metric-box"><div class="metric-lbl">Product Cat</div><div class="metric-val" id="dispCat">-</div></div>
+          <div class="metric-box"><div class="metric-lbl">Cluster</div><div class="metric-val" id="dispCluster">-</div></div>
+          <div class="metric-box"><div class="metric-lbl">Karat / Prolif</div><div class="metric-val" id="dispKaratProlif">-</div></div>
+          <div class="metric-box"><div class="metric-lbl">Total Stock</div><div class="metric-val" id="dispTotalQty">0 pcs</div></div>
+        </div>
+
+        <div style="background: #090e1a; padding: 10px; border-radius: 6px; border: 1px solid var(--border);">
+          <div class="section-title"><span>Available Stores (<span id="dispStoreCount">0</span>)</span><span style="color:var(--primary);">Click store chip to isolate</span></div>
+          <div class="chip-container" id="dispStoreChips"></div>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <div style="flex:1; background:#090e1a; padding:8px 10px; border-radius:6px; border:1px solid var(--border);"><div class="section-title">Available Sizes</div><div id="dispSizesText" style="font-weight:700; color:#fff; font-size:0.85rem;">-</div></div>
+          <div style="flex:1; background:#090e1a; padding:8px 10px; border-radius:6px; border:1px solid var(--border);"><div class="section-title">Weight Range (WT)</div><div id="dispWtRangeText" style="font-weight:700; color:#fff; font-size:0.85rem;">-</div></div>
+        </div>
+
+        <div class="detailed-tray">
+          <div style="font-size:0.78rem; font-weight:700; color:var(--primary); margin-bottom:6px;" id="trayHeader">Available Lots & Weights</div>
+          <div style="max-height: 155px; overflow-y: auto;">
+            <table class="tray-table">
+              <thead><tr><th>Store</th><th>Lot No</th><th>Qty</th><th>WT (g)</th><th>Size</th><th>Value (₹)</th></tr></thead>
+              <tbody id="trayTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions-bar">
+      <button class="btn-nav" id="prevBtn" onclick="navigateVariant(-1)">← Previous</button>
+      <div class="btn-decision">
+        <button class="btn-action" style="background:#334155; color:#fff;" onclick="navigateVariant(1)">Skip</button>
+        <button class="btn-action btn-confirm" id="confirmBtn" onclick="toggleConfirmCurrent()">✔ Confirm Variant</button>
+      </div>
+      <button class="btn-nav" id="nextBtn" onclick="navigateVariant(1)">Next →</button>
+    </div>
+  </div>
+
+  <script>
+    let rawData = [];
+    let filteredGroups = [];
+    let selectedVariantsMap = new Map();
+    let currentIdx = 0;
+    let activeStoreFilter = null;
+    let encryptedData = "";
+
+    const filterFields = {
+      store: { col: 'Storecode', selected: new Set() },
+      cat: { col: 'Product category', selected: new Set() },
+      cluster: { col: 'CLUSTER', selected: new Set() },
+      ag: { col: 'AG', selected: new Set() },
+      size: { col: 'Size', selected: new Set() },
+      karat: { col: 'Karat', selected: new Set() },
+      prolif: { col: 'Prolif', selected: new Set() }
+    };
+
+    window.addEventListener('click', (e) => {
+      if (!e.target.closest('.filter-box')) document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+    });
+
+    function toggleDropdown(key) {
+      const menu = document.getElementById(`menu-${key}`);
+      const isShown = menu.classList.contains('show');
+      document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+      if (!isShown) menu.classList.add('show');
+    }
+
+    // Auto-fetch the encrypted file immediately in background
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch(`data.enc?t=${Date.now()}`);
+        if (res.ok) encryptedData = await res.text();
+      } catch (err) {
+        console.error("Could not fetch data.enc", err);
+      }
+    });
+
+    function decryptAndLoad() {
+      const pin = document.getElementById('passInput').value.trim();
+      const errBox = document.getElementById('authErr');
+      errBox.style.display = 'none';
+
+      try {
+        const bytes = CryptoJS.AES.decrypt(encryptedData, pin);
+        const decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
+        if (!decryptedStr) throw new Error("Incorrect Password");
+
+        rawData = JSON.parse(decryptedStr);
+        rawData.forEach(r => {
+          r._variant = String(r['Variant'] || '').trim();
+          r._design = r._variant.length >= 9 ? r._variant.slice(2, 9) : r._variant;
+          r._store = String(r['Storecode'] || '').trim();
+          r._cat = String(r['Product category'] || '').trim();
+          r._cluster = String(r['CLUSTER'] || '').trim();
+          r._ag = String(r['AG'] || '').trim();
+          r._size = String(r['Size'] || '').trim();
+          r._karat = String(r['Karat'] || '').trim();
+          r._prolif = String(r['Prolif'] || '').trim();
+          r._wt = parseFloat(r['WT']) || 0;
+        });
+
+        document.getElementById('authOverlay').style.display = 'none';
+        applyFilters();
+      } catch (e) {
+        errBox.style.display = 'block';
+      }
+    }
+
+    function getContextualRows(excludeKey = null) {
+      const wtOp = document.getElementById('wtOp').value;
+      const wt1 = parseFloat(document.getElementById('wtVal1').value);
+      const wt2 = parseFloat(document.getElementById('wtVal2').value);
+
+      return rawData.filter(r => {
+        for (const key of Object.keys(filterFields)) {
+          if (key === excludeKey) continue;
+          const sel = filterFields[key].selected;
+          if (sel.size > 0 && !sel.has(String(r[filterFields[key].col] || '(Blank)').trim())) return false;
+        }
+        if (wtOp !== 'any' && !isNaN(wt1)) {
+          const w = r._wt;
+          if (wtOp === 'eq' && Math.abs(w - wt1) > 0.0001) return false;
+          if (wtOp === 'gt' && w <= wt1) return false;
+          if (wtOp === 'gte' && w < wt1) return false;
+          if (wtOp === 'lt' && w >= wt1) return false;
+          if (wtOp === 'lte' && w > wt1) return false;
+          if (wtOp === 'between') {
+            if (isNaN(wt2) || w < Math.min(wt1, wt2) || w > Math.max(wt1, wt2)) return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    function refreshDropdownMenus() {
+      Object.keys(filterFields).forEach(key => {
+        const eligibleRows = getContextualRows(key);
+        const colField = filterFields[key].col;
+        const counts = {};
+        eligibleRows.forEach(r => {
+          const val = String(r[colField] || '(Blank)').trim();
+          counts[val] = (counts[val] || 0) + 1;
+        });
+
+        const validValues = new Set(Object.keys(counts));
+        filterFields[key].selected.forEach(v => { if (!validValues.has(v)) filterFields[key].selected.delete(v); });
+
+        const listContainer = document.getElementById(`list-${key}`);
+        listContainer.innerHTML = '';
+        Object.keys(counts).sort().forEach(val => {
+          const isChecked = filterFields[key].selected.has(val);
+          const item = document.createElement('label');
+          item.className = 'dropdown-item';
+          item.innerHTML = `<input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} onchange="handleCheckboxChange('${key}', '${val}', this.checked)"><span>${val} <small style="color:var(--text-muted)">(${counts[val]})</small></span>`;
+          listContainer.appendChild(item);
+        });
+        updateDropdownBtnLabel(key);
+      });
+    }
+
+    function handleCheckboxChange(key, val, isChecked) {
+      if (isChecked) filterFields[key].selected.add(val);
+      else filterFields[key].selected.delete(val);
+      applyFilters();
+    }
+
+    function updateDropdownBtnLabel(key) {
+      const btn = document.querySelector(`#fb-${key} .dropdown-btn`);
+      const count = filterFields[key].selected.size;
+      const baseName = { store:'Stores', cat:'Categories', cluster:'Clusters', ag:'AGs', size:'Sizes', karat:'Karats', prolif:'Prolifs' }[key];
+      btn.innerText = count === 0 ? `All ${baseName}` : `${count} ${baseName} Selected`;
+    }
+
+    function handleWtOpChange() {
+      const op = document.getElementById('wtOp').value;
+      const v1 = document.getElementById('wtVal1'), v2 = document.getElementById('wtVal2'), sp = document.getElementById('wtBetweenSpan');
+      v1.style.display = op === 'any' ? 'none' : 'inline-block';
+      v2.style.display = op === 'between' ? 'inline-block' : 'none';
+      sp.style.display = op === 'between' ? 'inline-block' : 'none';
+      applyFilters();
+    }
+
+    function resetAllFilters() {
+      Object.keys(filterFields).forEach(key => filterFields[key].selected.clear());
+      document.getElementById('wtOp').value = 'any';
+      document.getElementById('wtVal1').value = '';
+      document.getElementById('wtVal2').value = '';
+      handleWtOpChange();
+    }
+
+    function applyFilters() {
+      const rows = getContextualRows(null);
+      const groupMap = new Map();
+      rows.forEach(r => {
+        if (!groupMap.has(r._variant)) groupMap.set(r._variant, { variant: r._variant, design: r._design, rows: [] });
+        groupMap.get(r._variant).rows.push(r);
+      });
+      filteredGroups = Array.from(groupMap.values());
+      currentIdx = 0;
+      activeStoreFilter = null;
+      refreshDropdownMenus();
+      updateUI();
+    }
+
+    function updateUI() {
+      document.getElementById('statVariantCount').innerText = filteredGroups.length;
+      document.getElementById('statMaxIdx').innerText = filteredGroups.length;
+      document.getElementById('exportCount').innerText = selectedVariantsMap.size;
+      document.getElementById('statSelectedCount').innerText = selectedVariantsMap.size;
+
+      if (filteredGroups.length === 0) return;
+      const cur = filteredGroups[currentIdx];
+      document.getElementById('statCurIdx').innerText = currentIdx + 1;
+
+      const img = document.getElementById('itemImg');
+      img.style.opacity = '0';
+      document.getElementById('imgFallback').style.display = 'none';
+      document.getElementById('imgLoader').style.display = 'flex';
+      img.src = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${cur.design}.jpg`;
+
+      // Preload next upcoming
+      if (filteredGroups[currentIdx + 1]) {
+        const p = new Image();
+        p.src = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${filteredGroups[currentIdx + 1].design}.jpg`;
+      }
+
+      document.getElementById('dispVariant').innerText = cur.variant;
+      document.getElementById('dispAG').innerText = cur.rows[0]._ag || 'N/A';
+      document.getElementById('dispCat').innerText = cur.rows[0]._cat || '-';
+      document.getElementById('dispCluster').innerText = cur.rows[0]._cluster || '-';
+      document.getElementById('dispKaratProlif').innerText = `${cur.rows[0]._karat}K | P: ${cur.rows[0]._prolif}`;
+
+      const totalQty = cur.rows.reduce((s, r) => s + (parseInt(r['Qty']) || 1), 0);
+      document.getElementById('dispTotalQty').innerText = `${totalQty} pcs`;
+
+      const sizes = Array.from(new Set(cur.rows.map(r => r._size))).filter(Boolean);
+      document.getElementById('dispSizesText').innerText = sizes.join(', ') || 'N/A';
+
+      const weights = cur.rows.map(r => r._wt);
+      document.getElementById('dispWtRangeText').innerText = `${Math.min(...weights).toFixed(3)} - ${Math.max(...weights).toFixed(3)} g`;
+
+      const storeMap = {};
+      cur.rows.forEach(r => { storeMap[r._store] = (storeMap[r._store] || 0) + (parseInt(r['Qty']) || 1); });
+      const storeKeys = Object.keys(storeMap).sort();
+      document.getElementById('dispStoreCount').innerText = storeKeys.length;
+
+      const storeChips = document.getElementById('dispStoreChips');
+      storeChips.innerHTML = '';
+      const allC = document.createElement('div');
+      allC.className = `chip ${activeStoreFilter === null ? 'active' : ''}`;
+      allC.innerText = `All (${totalQty})`;
+      allC.onclick = () => { activeStoreFilter = null; renderDetailedTray(cur); updateStoreChipsUI(); };
+      storeChips.appendChild(allC);
+
+      storeKeys.forEach(st => {
+        const c = document.createElement('div');
+        c.className = `chip ${activeStoreFilter === st ? 'active' : ''}`;
+        c.innerText = `${st} (${storeMap[st]})`;
+        c.onclick = () => { activeStoreFilter = activeStoreFilter === st ? null : st; renderDetailedTray(cur); updateStoreChipsUI(); };
+        storeChips.appendChild(c);
+      });
+
+      const isConf = selectedVariantsMap.has(cur.variant);
+      const confBtn = document.getElementById('confirmBtn');
+      confBtn.innerText = isConf ? "✖ Remove Selection" : "✔ Confirm Variant";
+      confBtn.className = isConf ? "btn-action btn-confirmed" : "btn-action btn-confirm";
+      document.getElementById('dispSelectedBadge').style.display = isConf ? "inline-block" : "none";
+
+      renderDetailedTray(cur);
+      document.getElementById('prevBtn').disabled = currentIdx === 0;
+      document.getElementById('nextBtn').disabled = currentIdx === filteredGroups.length - 1;
+    }
+
+    function updateStoreChipsUI() {
+      document.querySelectorAll('#dispStoreChips .chip').forEach((c, i) => {
+        c.className = i === 0 ? `chip ${activeStoreFilter === null ? 'active' : ''}` : `chip ${c.innerText.startsWith(activeStoreFilter + ' ') ? 'active' : ''}`;
+      });
+    }
+
+    function renderDetailedTray(cur) {
+      const tbody = document.getElementById('trayTbody');
+      tbody.innerHTML = '';
+      const rows = activeStoreFilter ? cur.rows.filter(r => r._store === activeStoreFilter) : cur.rows;
+      document.getElementById('trayHeader').innerText = activeStoreFilter ? `Available Lots for ${activeStoreFilter} (${rows.length} lots)` : `Available Lots (All Stores - ${rows.length} lots)`;
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><b>${r._store}</b></td><td style="font-family:monospace; color:var(--primary);">${r['Lotno']}</td><td>${r['Qty']}</td><td><b>${r._wt.toFixed(3)}</b></td><td>${r._size}</td><td>₹${Number(r['Val']||0).toLocaleString('en-IN')}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function handleImageSuccess() {
+      document.getElementById('imgLoader').style.display = 'none';
+      document.getElementById('itemImg').style.opacity = '1';
+    }
+    function handleImageError() {
+      document.getElementById('imgLoader').style.display = 'none';
+      document.getElementById('itemImg').style.display = 'none';
+      document.getElementById('imgFallback').style.display = 'block';
+    }
+
+    function toggleConfirmCurrent() {
+      const cur = filteredGroups[currentIdx];
+      if (selectedVariantsMap.has(cur.variant)) selectedVariantsMap.delete(cur.variant);
+      else selectedVariantsMap.set(cur.variant, cur.rows);
+      updateUI();
+    }
+
+    function navigateVariant(s) {
+      const n = currentIdx + s;
+      if (n >= 0 && n < filteredGroups.length) { currentIdx = n; activeStoreFilter = null; updateUI(); }
+    }
+
+    function exportSelected() {
+      if (selectedVariantsMap.size === 0) { alert("No variants confirmed yet."); return; }
+      const rows = [];
+      selectedVariantsMap.forEach(grp => grp.forEach(r => {
+        const c = { ...r };
+        delete c._variant; delete c._design; delete c._store; delete c._cat; delete c._cluster; delete c._ag; delete c._size; delete c._karat; delete c._prolif; delete c._wt;
+        rows.push(c);
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Selected");
+      XLSX.writeFile(wb, `South1_Selected_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+  </script>
+</body>
+</html>
