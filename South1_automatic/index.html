@@ -169,7 +169,7 @@
   </div>
 
   <div class="stats-bar">
-    <div>Filtered Unique Variants: <b id="statVariantCount">0</b></div>
+    <div>Filtered Unique Variants: <b id="statVariantCount">0</b> <span id="statTotalUnits" style="color:var(--text-muted); font-size:0.8rem;"></span></div>
     <div>Viewing: <b id="statCurIdx">0</b> of <span id="statMaxIdx">0</span></div>
     <div>Selected: <b id="statSelectedCount">0</b></div>
   </div>
@@ -427,6 +427,10 @@
       document.getElementById('exportCount').innerText = selectedVariantsMap.size;
       document.getElementById('statSelectedCount').innerText = selectedVariantsMap.size;
 
+      // Calculate Total Units Across Current Filtered Items
+      const totalUnitsAll = filteredGroups.reduce((acc, g) => acc + g.rows.reduce((s, r) => s + (parseInt(r['Qty']) || 1), 0), 0);
+      document.getElementById('statTotalUnits').innerText = `(Total Units: ${totalUnitsAll.toLocaleString('en-IN')})`;
+
       if (filteredGroups.length === 0) return;
       const cur = filteredGroups[currentIdx];
       document.getElementById('statCurIdx').innerText = currentIdx + 1;
@@ -437,7 +441,7 @@
       document.getElementById('imgLoader').style.display = 'flex';
       img.src = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${cur.design}.jpg`;
 
-      // Preload next upcoming
+      // Preload next image
       if (filteredGroups[currentIdx + 1]) {
         const p = new Image();
         p.src = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${filteredGroups[currentIdx + 1].design}.jpg`;
