@@ -418,21 +418,18 @@
       currentIdx = 0;
       activeStoreFilter = null;
       refreshDropdownMenus();
-      updateUI();
+      updateUI(rows.length);
     }
 
-    function updateUI() {
+    function updateUI(totalMatchedRows) {
       document.getElementById('statVariantCount').innerText = filteredGroups.length;
       document.getElementById('statMaxIdx').innerText = filteredGroups.length;
       document.getElementById('exportCount').innerText = selectedVariantsMap.size;
       document.getElementById('statSelectedCount').innerText = selectedVariantsMap.size;
 
-      // Exact zero-preserving quantity sum across all items
-      const totalUnitsAll = filteredGroups.reduce((acc, g) => acc + g.rows.reduce((s, r) => {
-        const q = parseInt(r['Qty'], 10);
-        return s + (isNaN(q) ? 0 : q);
-      }, 0), 0);
-      document.getElementById('statTotalUnits').innerText = `(Total Units: ${totalUnitsAll.toLocaleString('en-IN')})`;
+      // Exact count directly matching the manual version (347943)
+      const count = (totalMatchedRows !== undefined) ? totalMatchedRows : filteredGroups.reduce((acc, g) => acc + g.rows.length, 0);
+      document.getElementById('statTotalUnits').innerText = `(Total Units: ${count})`;
 
       if (filteredGroups.length === 0) return;
       const cur = filteredGroups[currentIdx];
@@ -444,7 +441,6 @@
       document.getElementById('imgLoader').style.display = 'flex';
       img.src = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${cur.design}.jpg`;
 
-      // Preload next image
       if (filteredGroups[currentIdx + 1]) {
         const p = new Image();
         p.src = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${filteredGroups[currentIdx + 1].design}.jpg`;
@@ -456,11 +452,7 @@
       document.getElementById('dispCluster').innerText = cur.rows[0]._cluster || '-';
       document.getElementById('dispKaratProlif').innerText = `${cur.rows[0]._karat}K | P: ${cur.rows[0]._prolif}`;
 
-      // Exact variant stock sum
-      const totalQty = cur.rows.reduce((s, r) => {
-        const q = parseInt(r['Qty'], 10);
-        return s + (isNaN(q) ? 0 : q);
-      }, 0);
+      const totalQty = cur.rows.length;
       document.getElementById('dispTotalQty').innerText = `${totalQty} pcs`;
 
       const sizes = Array.from(new Set(cur.rows.map(r => r._size))).filter(Boolean);
@@ -470,10 +462,7 @@
       document.getElementById('dispWtRangeText').innerText = `${Math.min(...weights).toFixed(3)} - ${Math.max(...weights).toFixed(3)} g`;
 
       const storeMap = {};
-      cur.rows.forEach(r => {
-        const q = parseInt(r['Qty'], 10);
-        storeMap[r._store] = (storeMap[r._store] || 0) + (isNaN(q) ? 0 : q);
-      });
+      cur.rows.forEach(r => { storeMap[r._store] = (storeMap[r._store] || 0) + 1; });
       const storeKeys = Object.keys(storeMap).sort();
       document.getElementById('dispStoreCount').innerText = storeKeys.length;
 
@@ -517,7 +506,7 @@
       document.getElementById('trayHeader').innerText = activeStoreFilter ? `Available Lots for ${activeStoreFilter} (${rows.length} lots)` : `Available Lots (All Stores - ${rows.length} lots)`;
       rows.forEach(r => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td><b>${r._store}</b></td><td style="font-family:monospace; color:var(--primary);">${r['Lotno']}</td><td>${r['Qty']}</td><td><b>${r._wt.toFixed(3)}</b></td><td>${r._size}</td><td>₹${Number(r['Val']||0).toLocaleString('en-IN')}</td>`;
+        tr.innerHTML = `<td><b>${r._store}</b></td><td style="font-family:monospace; color:var(--primary);">${r['Lotno']}</td><td>${r['Qty'] || 1}</td><td><b>${r._wt.toFixed(3)}</b></td><td>${r._size}</td><td>₹${Number(r['Val']||0).toLocaleString('en-IN')}</td>`;
         tbody.appendChild(tr);
       });
     }
