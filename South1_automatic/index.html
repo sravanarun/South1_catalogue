@@ -427,8 +427,11 @@
       document.getElementById('exportCount').innerText = selectedVariantsMap.size;
       document.getElementById('statSelectedCount').innerText = selectedVariantsMap.size;
 
-      // Calculate Total Units Across Current Filtered Items
-      const totalUnitsAll = filteredGroups.reduce((acc, g) => acc + g.rows.reduce((s, r) => s + (parseInt(r['Qty']) || 1), 0), 0);
+      // Exact zero-preserving quantity sum across all items
+      const totalUnitsAll = filteredGroups.reduce((acc, g) => acc + g.rows.reduce((s, r) => {
+        const q = parseInt(r['Qty'], 10);
+        return s + (isNaN(q) ? 0 : q);
+      }, 0), 0);
       document.getElementById('statTotalUnits').innerText = `(Total Units: ${totalUnitsAll.toLocaleString('en-IN')})`;
 
       if (filteredGroups.length === 0) return;
@@ -453,7 +456,11 @@
       document.getElementById('dispCluster').innerText = cur.rows[0]._cluster || '-';
       document.getElementById('dispKaratProlif').innerText = `${cur.rows[0]._karat}K | P: ${cur.rows[0]._prolif}`;
 
-      const totalQty = cur.rows.reduce((s, r) => s + (parseInt(r['Qty']) || 1), 0);
+      // Exact variant stock sum
+      const totalQty = cur.rows.reduce((s, r) => {
+        const q = parseInt(r['Qty'], 10);
+        return s + (isNaN(q) ? 0 : q);
+      }, 0);
       document.getElementById('dispTotalQty').innerText = `${totalQty} pcs`;
 
       const sizes = Array.from(new Set(cur.rows.map(r => r._size))).filter(Boolean);
@@ -463,7 +470,10 @@
       document.getElementById('dispWtRangeText').innerText = `${Math.min(...weights).toFixed(3)} - ${Math.max(...weights).toFixed(3)} g`;
 
       const storeMap = {};
-      cur.rows.forEach(r => { storeMap[r._store] = (storeMap[r._store] || 0) + (parseInt(r['Qty']) || 1); });
+      cur.rows.forEach(r => {
+        const q = parseInt(r['Qty'], 10);
+        storeMap[r._store] = (storeMap[r._store] || 0) + (isNaN(q) ? 0 : q);
+      });
       const storeKeys = Object.keys(storeMap).sort();
       document.getElementById('dispStoreCount').innerText = storeKeys.length;
 
