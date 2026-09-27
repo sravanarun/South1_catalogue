@@ -49,7 +49,7 @@
     .auth-btn:hover { background: #0369a1; }
     .auth-err { color: #ef4444; font-size: 0.8rem; margin-top: 10px; display: none; }
 
-    /* App UI */
+    /* App Header & Controls */
     .header { width: 100%; max-width: 1250px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
     .header h2 { margin: 0; font-size: 1.5rem; color: var(--primary); }
     .control-panel { width: 100%; max-width: 1250px; background: var(--panel-bg); padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; }
@@ -74,10 +74,10 @@
     .stats-bar { width: 100%; max-width: 1250px; display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 12px; font-size: 0.8rem; color: var(--text-muted); }
     .stats-bar b { color: var(--primary); }
 
+    /* Main Inspection Display Card */
     .main-card { width: 100%; max-width: 1250px; background: var(--card-bg); border: 2px solid var(--border); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
     .card-top { display: flex; gap: 24px; align-items: stretch; }
 
-    /* Large 520px Image Section */
     .image-viewer { width: 520px; height: 520px; min-width: 520px; background: #ffffff; border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 2px solid var(--border); position: relative; }
     .image-viewer img { width: 100%; height: 100%; object-fit: contain; }
     .img-loader { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #0284c7; font-size: 0.85rem; font-weight: 700; background: #ffffff; width: 100%; height: 100%; z-index: 5; }
@@ -256,7 +256,7 @@
       if (!isShown) menu.classList.add('show');
     }
 
-    // Auto-fetch data.enc on load
+    // Auto-fetch data.enc on DOM ready
     window.addEventListener('DOMContentLoaded', async () => {
       try {
         const res = await fetch(`data.enc?t=${Date.now()}`);
@@ -304,7 +304,7 @@
           if (!variant) return;
 
           r._variant = variant;
-          r._design = variant.length >= 9 ? variant.slice(2, 9) : variant;
+          r._design = variant.length >= 9 ? variant.slice(2, 9).toUpperCase() : variant.toUpperCase();
           r._store = getVal(['Storecode', 'Store Code', 'STORECODE', 'STORE']);
           r._cat = getVal(['Product category', 'PRODUCT CATEGORY', 'Category', 'Cat']);
           r._cluster = getVal(['CLUSTER', 'Cluster']);
@@ -427,7 +427,7 @@
       document.getElementById('exportCount').innerText = selectedVariantsMap.size;
       document.getElementById('statSelectedCount').innerText = selectedVariantsMap.size;
 
-      // Exact count directly matching the manual version (347943)
+      // Exact count matching the manual version
       const count = (totalMatchedRows !== undefined) ? totalMatchedRows : filteredGroups.reduce((acc, g) => acc + g.rows.length, 0);
       document.getElementById('statTotalUnits').innerText = `(Total Units: ${count})`;
 
@@ -435,15 +435,22 @@
       const cur = filteredGroups[currentIdx];
       document.getElementById('statCurIdx').innerText = currentIdx + 1;
 
+      // Image Load Pipeline
       const img = document.getElementById('itemImg');
       img.style.opacity = '0';
+      img.style.display = 'block';
       document.getElementById('imgFallback').style.display = 'none';
       document.getElementById('imgLoader').style.display = 'flex';
-      img.src = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${cur.design}.jpg`;
 
+      const dCode = (cur.design || '').trim().toUpperCase();
+      img.dataset.retried = "0";
+      img.src = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${dCode}.jpg`;
+
+      // Preload next upcoming image
       if (filteredGroups[currentIdx + 1]) {
+        const nextD = (filteredGroups[currentIdx + 1].design || '').trim().toUpperCase();
         const p = new Image();
-        p.src = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${filteredGroups[currentIdx + 1].design}.jpg`;
+        p.src = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${nextD}.jpg`;
       }
 
       document.getElementById('dispVariant').innerText = cur.variant;
@@ -515,9 +522,21 @@
       document.getElementById('imgLoader').style.display = 'none';
       document.getElementById('itemImg').style.opacity = '1';
     }
+
     function handleImageError() {
+      const img = document.getElementById('itemImg');
+      const cur = filteredGroups[currentIdx];
+      const dCode = (cur?.design || '').trim().toUpperCase();
+
+      // Retry once with uppercase extension .JPG
+      if (img.dataset.retried === "0") {
+        img.dataset.retried = "1";
+        img.src = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${dCode}.JPG`;
+        return;
+      }
+
       document.getElementById('imgLoader').style.display = 'none';
-      document.getElementById('itemImg').style.display = 'none';
+      img.style.display = 'none';
       const fallback = document.getElementById('imgFallback');
       fallback.style.display = 'flex';
       fallback.style.flexDirection = 'column';
@@ -526,7 +545,7 @@
       fallback.innerHTML = `
         <div style="font-size: 2.5rem; margin-bottom: 8px;">🖼️</div>
         <div style="font-weight: 700; color: #334155;">No Catalog Image Found</div>
-        <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">Design: ${filteredGroups[currentIdx]?.design || 'N/A'}</div>
+        <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">Design: ${dCode || 'N/A'}</div>
       `;
     }
 
