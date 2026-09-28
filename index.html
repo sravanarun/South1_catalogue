@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>South1 Stock Visual Inspector (Auto)</title>
+  <title>South1 Catalogue</title>
   <!-- Decompression & Decryption Engines -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
@@ -317,10 +317,7 @@
   </div>
 
   <div class="header">
-    <div>
-      <h2>South1 Stock Visual Inspector (Auto)</h2>
-      <p style="margin:2px 0 0 0; font-size:0.75rem; color:var(--text-muted);">Encrypted In-Memory Feed • Optimized for Android & Desktop</p>
-    </div>
+    <h2>South1 Catalogue</h2>
     <button class="export-btn" onclick="exportSelected()">📥 Download Selected (<span id="exportCount">0</span>)</button>
   </div>
 
@@ -417,7 +414,7 @@
               </span>
               <small id="lbl-all-size" style="color:var(--text-muted);">0 / 0</small>
             </div>
-            <input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('size', this.value)">
+            <input type="text" class="dropdown-search" placeholder="Search size..." oninput="filterChecklist('size', this.value)">
           </div>
           <div class="dropdown-list" id="list-size"></div>
         </div>
@@ -435,7 +432,7 @@
               </span>
               <small id="lbl-all-karat" style="color:var(--text-muted);">0 / 0</small>
             </div>
-            <input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('karat', this.value)">
+            <input type="text" class="dropdown-search" placeholder="Search karat..." oninput="filterChecklist('karat', this.value)">
           </div>
           <div class="dropdown-list" id="list-karat"></div>
         </div>
@@ -453,7 +450,7 @@
               </span>
               <small id="lbl-all-prolif" style="color:var(--text-muted);">0 / 0</small>
             </div>
-            <input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('prolif', this.value)">
+            <input type="text" class="dropdown-search" placeholder="Search prolif..." oninput="filterChecklist('prolif', this.value)">
           </div>
           <div class="dropdown-list" id="list-prolif"></div>
         </div>
@@ -600,7 +597,6 @@
       if (!isShown) menu.classList.add('show');
     }
 
-    // Initiate encrypted dataset download immediately
     window.addEventListener('DOMContentLoaded', () => {
       dataFetchPromise = fetch(`data.enc?t=${Date.now()}`)
         .then(res => {
@@ -617,7 +613,6 @@
         });
     });
 
-    // Decrypt flow that safely awaits download completion
     async function decryptAndLoad() {
       const pin = document.getElementById('passInput').value.trim();
       const errBox = document.getElementById('authErr');
@@ -703,7 +698,6 @@
       }
     }
 
-    // Universal multi-attribute search
     function handleUniversalSearch() {
       applyFilters();
     }
@@ -753,7 +747,6 @@
           counts[val] = (counts[val] || 0) + 1;
         });
 
-        // Ensure user's explicitly selected items remain listed even if count is 0
         filterFields[key].selected.forEach(selVal => {
           if (!counts[selVal]) counts[selVal] = 0;
         });
@@ -777,7 +770,6 @@
           listContainer.appendChild(item);
         });
 
-        // Update Select All Checkbox state
         const selectAllChk = document.getElementById(`chk-all-${key}`);
         const selectAllLbl = document.getElementById(`lbl-all-${key}`);
         if (selectAllChk) {
@@ -792,7 +784,6 @@
       });
     }
 
-    // Toggle Select All Options for a specific dropdown
     function toggleSelectAllDropdown(key) {
       const eligibleRows = getContextualRows(key);
       const colField = filterFields[key].col;
@@ -1082,7 +1073,6 @@
       `;
     }
 
-    /* Swipe Gesture Support */
     let touchStartX = 0;
     let touchEndX = 0;
     const lightboxBody = document.getElementById('lightboxBody');
