@@ -68,12 +68,21 @@
     .dropdown-btn:hover { border-color: var(--primary); }
     .dropdown-btn::after { content: "▾"; font-size: 0.75rem; margin-left: 6px; color: var(--text-muted); flex-shrink: 0; }
     
-    .dropdown-menu { display: none; position: absolute; top: calc(100% + 4px); left: 0; min-width: 220px; max-height: 280px; background: #0b1324; border: 1px solid var(--border); border-radius: 8px; z-index: 1000; flex-direction: column; padding: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.8); }
+    .dropdown-menu { display: none; position: absolute; top: calc(100% + 4px); left: 0; min-width: 220px; max-height: 310px; background: #0b1324; border: 1px solid var(--border); border-radius: 8px; z-index: 1000; flex-direction: column; padding: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.8); }
     .dropdown-menu.show { display: flex; }
-    .dropdown-menu-wide { min-width: 380px; max-width: 480px; max-height: 350px; }
-    .dropdown-search { background: #090e1a; border: 1px solid var(--border); color: #fff; padding: 6px 8px; border-radius: 4px; font-size: 0.76rem; margin-bottom: 6px; outline: none; }
-    .dropdown-list { overflow-y: auto; display: flex; flex-direction: column; gap: 3px; max-height: 190px; }
-    .dropdown-menu-wide .dropdown-list { max-height: 270px; }
+    .dropdown-menu-wide { min-width: 440px; max-width: 520px; max-height: 380px; }
+
+    /* Dropdown Toolbar with Select All & Search */
+    .dropdown-toolbar { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+    .select-all-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; color: var(--primary); cursor: pointer; padding: 2px 4px; }
+    .select-all-row:hover { background: #1e293b; border-radius: 4px; }
+    .select-all-label { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; font-weight: 600; }
+
+    .dropdown-search { background: #090e1a; border: 1px solid var(--border); color: #fff; padding: 6px 8px; border-radius: 4px; font-size: 0.76rem; outline: none; }
+    .dropdown-search:focus { border-color: var(--primary); }
+    .dropdown-list { overflow-y: auto; display: flex; flex-direction: column; gap: 3px; max-height: 180px; }
+    .dropdown-menu-wide .dropdown-list { max-height: 260px; }
+
     .dropdown-item { display: flex; align-items: flex-start; gap: 6px; font-size: 0.76rem; cursor: pointer; padding: 5px 6px; border-radius: 4px; word-break: break-all; }
     .dropdown-item:hover { background: #1e293b; }
     .dropdown-item input { margin-top: 2px; flex-shrink: 0; }
@@ -317,21 +326,138 @@
 
   <div class="control-panel">
     <div class="filter-grid">
+      <!-- Universal Live Search across Variant, Store, Cluster, AG, etc. -->
       <div class="filter-box">
-        <span class="filter-label">Search SKU / Variant</span>
-        <input type="text" class="search-input" id="skuSearchInput" placeholder="Search SKU..." oninput="handleSkuSearch()">
+        <span class="filter-label">Search (SKU, AG, Store, etc.)</span>
+        <input type="text" class="search-input" id="skuSearchInput" placeholder="Search..." oninput="handleUniversalSearch()">
       </div>
 
-      <div class="filter-box" id="fb-store"><span class="filter-label">Store Code</span><button class="dropdown-btn" onclick="toggleDropdown('store')">All Stores</button><div class="dropdown-menu" id="menu-store"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('store', this.value)"><div class="dropdown-list" id="list-store"></div></div></div>
-      <div class="filter-box" id="fb-cat"><span class="filter-label">Product Cat</span><button class="dropdown-btn" onclick="toggleDropdown('cat')">All Categories</button><div class="dropdown-menu" id="menu-cat"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('cat', this.value)"><div class="dropdown-list" id="list-cat"></div></div></div>
-      <div class="filter-box" id="fb-cluster"><span class="filter-label">Cluster</span><button class="dropdown-btn" onclick="toggleDropdown('cluster')">All Clusters</button><div class="dropdown-menu" id="menu-cluster"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('cluster', this.value)"><div class="dropdown-list" id="list-cluster"></div></div></div>
+      <div class="filter-box" id="fb-store">
+        <span class="filter-label">Store Code</span>
+        <button class="dropdown-btn" onclick="toggleDropdown('store')">All Stores</button>
+        <div class="dropdown-menu" id="menu-store">
+          <div class="dropdown-toolbar">
+            <div class="select-all-row" onclick="toggleSelectAllDropdown('store')">
+              <span class="select-all-label">
+                <input type="checkbox" id="chk-all-store" onclick="event.stopPropagation(); toggleSelectAllDropdown('store')">
+                <span>Select All</span>
+              </span>
+              <small id="lbl-all-store" style="color:var(--text-muted);">0 / 0</small>
+            </div>
+            <input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('store', this.value)">
+          </div>
+          <div class="dropdown-list" id="list-store"></div>
+        </div>
+      </div>
+
+      <div class="filter-box" id="fb-cat">
+        <span class="filter-label">Product Cat</span>
+        <button class="dropdown-btn" onclick="toggleDropdown('cat')">All Categories</button>
+        <div class="dropdown-menu" id="menu-cat">
+          <div class="dropdown-toolbar">
+            <div class="select-all-row" onclick="toggleSelectAllDropdown('cat')">
+              <span class="select-all-label">
+                <input type="checkbox" id="chk-all-cat" onclick="event.stopPropagation(); toggleSelectAllDropdown('cat')">
+                <span>Select All</span>
+              </span>
+              <small id="lbl-all-cat" style="color:var(--text-muted);">0 / 0</small>
+            </div>
+            <input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('cat', this.value)">
+          </div>
+          <div class="dropdown-list" id="list-cat"></div>
+        </div>
+      </div>
+
+      <div class="filter-box" id="fb-cluster">
+        <span class="filter-label">Cluster</span>
+        <button class="dropdown-btn" onclick="toggleDropdown('cluster')">All Clusters</button>
+        <div class="dropdown-menu" id="menu-cluster">
+          <div class="dropdown-toolbar">
+            <div class="select-all-row" onclick="toggleSelectAllDropdown('cluster')">
+              <span class="select-all-label">
+                <input type="checkbox" id="chk-all-cluster" onclick="event.stopPropagation(); toggleSelectAllDropdown('cluster')">
+                <span>Select All</span>
+              </span>
+              <small id="lbl-all-cluster" style="color:var(--text-muted);">0 / 0</small>
+            </div>
+            <input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('cluster', this.value)">
+          </div>
+          <div class="dropdown-list" id="list-cluster"></div>
+        </div>
+      </div>
       
       <!-- AG Group Expanded -->
-      <div class="filter-box filter-box-wide" id="fb-ag"><span class="filter-label">AG Group</span><button class="dropdown-btn" onclick="toggleDropdown('ag')">All AGs</button><div class="dropdown-menu dropdown-menu-wide" id="menu-ag"><input type="text" class="dropdown-search" placeholder="Search AG..." oninput="filterChecklist('ag', this.value)"><div class="dropdown-list" id="list-ag"></div></div></div>
+      <div class="filter-box filter-box-wide" id="fb-ag">
+        <span class="filter-label">AG Group</span>
+        <button class="dropdown-btn" onclick="toggleDropdown('ag')">All AGs</button>
+        <div class="dropdown-menu dropdown-menu-wide" id="menu-ag">
+          <div class="dropdown-toolbar">
+            <div class="select-all-row" onclick="toggleSelectAllDropdown('ag')">
+              <span class="select-all-label">
+                <input type="checkbox" id="chk-all-ag" onclick="event.stopPropagation(); toggleSelectAllDropdown('ag')">
+                <span>Select All</span>
+              </span>
+              <small id="lbl-all-ag" style="color:var(--text-muted);">0 / 0</small>
+            </div>
+            <input type="text" class="dropdown-search" placeholder="Search AG..." oninput="filterChecklist('ag', this.value)">
+          </div>
+          <div class="dropdown-list" id="list-ag"></div>
+        </div>
+      </div>
       
-      <div class="filter-box" id="fb-size"><span class="filter-label">Size</span><button class="dropdown-btn" onclick="toggleDropdown('size')">All Sizes</button><div class="dropdown-menu" id="menu-size"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('size', this.value)"><div class="dropdown-list" id="list-size"></div></div></div>
-      <div class="filter-box" id="fb-karat"><span class="filter-label">Karat</span><button class="dropdown-btn" onclick="toggleDropdown('karat')">All Karats</button><div class="dropdown-menu" id="menu-karat"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('karat', this.value)"><div class="dropdown-list" id="list-karat"></div></div></div>
-      <div class="filter-box" id="fb-prolif"><span class="filter-label">Prolif</span><button class="dropdown-btn" onclick="toggleDropdown('prolif')">All Prolifs</button><div class="dropdown-menu" id="menu-prolif"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('prolif', this.value)"><div class="dropdown-list" id="list-prolif"></div></div></div>
+      <div class="filter-box" id="fb-size">
+        <span class="filter-label">Size</span>
+        <button class="dropdown-btn" onclick="toggleDropdown('size')">All Sizes</button>
+        <div class="dropdown-menu" id="menu-size">
+          <div class="dropdown-toolbar">
+            <div class="select-all-row" onclick="toggleSelectAllDropdown('size')">
+              <span class="select-all-label">
+                <input type="checkbox" id="chk-all-size" onclick="event.stopPropagation(); toggleSelectAllDropdown('size')">
+                <span>Select All</span>
+              </span>
+              <small id="lbl-all-size" style="color:var(--text-muted);">0 / 0</small>
+            </div>
+            <input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('size', this.value)">
+          </div>
+          <div class="dropdown-list" id="list-size"></div>
+        </div>
+      </div>
+
+      <div class="filter-box" id="fb-karat">
+        <span class="filter-label">Karat</span>
+        <button class="dropdown-btn" onclick="toggleDropdown('karat')">All Karats</button>
+        <div class="dropdown-menu" id="menu-karat">
+          <div class="dropdown-toolbar">
+            <div class="select-all-row" onclick="toggleSelectAllDropdown('karat')">
+              <span class="select-all-label">
+                <input type="checkbox" id="chk-all-karat" onclick="event.stopPropagation(); toggleSelectAllDropdown('karat')">
+                <span>Select All</span>
+              </span>
+              <small id="lbl-all-karat" style="color:var(--text-muted);">0 / 0</small>
+            </div>
+            <input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('karat', this.value)">
+          </div>
+          <div class="dropdown-list" id="list-karat"></div>
+        </div>
+      </div>
+
+      <div class="filter-box" id="fb-prolif">
+        <span class="filter-label">Prolif</span>
+        <button class="dropdown-btn" onclick="toggleDropdown('prolif')">All Prolifs</button>
+        <div class="dropdown-menu" id="menu-prolif">
+          <div class="dropdown-toolbar">
+            <div class="select-all-row" onclick="toggleSelectAllDropdown('prolif')">
+              <span class="select-all-label">
+                <input type="checkbox" id="chk-all-prolif" onclick="event.stopPropagation(); toggleSelectAllDropdown('prolif')">
+                <span>Select All</span>
+              </span>
+              <small id="lbl-all-prolif" style="color:var(--text-muted);">0 / 0</small>
+            </div>
+            <input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('prolif', this.value)">
+          </div>
+          <div class="dropdown-list" id="list-prolif"></div>
+        </div>
+      </div>
     </div>
 
     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--border);">
@@ -362,7 +488,6 @@
 
   <div class="main-card">
     <div class="card-top">
-      <!-- Tap-To-Zoom Image Box -->
       <div class="image-viewer" onclick="openLightbox()" title="Click to enlarge image">
         <div class="img-loader" id="imgLoader"><div class="spinner"></div><span>Loading image...</span></div>
         <img id="itemImg" src="" alt="Variant Preview" onload="handleImageSuccess()" onerror="handleImageError()">
@@ -507,7 +632,6 @@
         return;
       }
 
-      // If data is still downloading, wait for it
       if (!encryptedData) {
         loadBox.style.display = 'block';
         btn.disabled = true;
@@ -579,7 +703,8 @@
       }
     }
 
-    function handleSkuSearch() {
+    // Universal multi-attribute search
+    function handleUniversalSearch() {
       applyFilters();
     }
 
@@ -587,13 +712,13 @@
       const wtOp = document.getElementById('wtOp').value;
       const wt1 = parseFloat(document.getElementById('wtVal1').value);
       const wt2 = parseFloat(document.getElementById('wtVal2').value);
-      const skuSearch = (document.getElementById('skuSearchInput')?.value || '').trim().toLowerCase();
+      const searchTerms = (document.getElementById('skuSearchInput')?.value || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
 
       return rawData.filter(r => {
-        if (skuSearch) {
-          const matchVar = r._variant.toLowerCase().includes(skuSearch);
-          const matchDes = r._design.toLowerCase().includes(skuSearch);
-          if (!matchVar && !matchDes) return false;
+        if (searchTerms.length > 0) {
+          const searchableText = `${r._variant} ${r._design} ${r._store} ${r._cat} ${r._cluster} ${r._ag}`.toLowerCase();
+          const allMatch = searchTerms.every(term => searchableText.includes(term));
+          if (!allMatch) return false;
         }
 
         for (const key of Object.keys(filterFields)) {
@@ -610,7 +735,8 @@
           if (wtOp === 'lt' && w >= wt1) return false;
           if (wtOp === 'lte' && w > wt1) return false;
           if (wtOp === 'between') {
-            if (isNaN(wt2) || w < Math.min(wt1, wt2) || w > Math.max(wt1, wt2)) return false;
+            if (isNaN(wt2)) return false;
+            if (w < Math.min(wt1, wt2) || w > Math.max(wt1, wt2)) return false;
           }
         }
         return true;
@@ -627,25 +753,73 @@
           counts[val] = (counts[val] || 0) + 1;
         });
 
-        const validValues = new Set(Object.keys(counts));
-        filterFields[key].selected.forEach(v => { if (!validValues.has(v)) filterFields[key].selected.delete(v); });
+        // Ensure user's explicitly selected items remain listed even if count is 0
+        filterFields[key].selected.forEach(selVal => {
+          if (!counts[selVal]) counts[selVal] = 0;
+        });
 
         const listContainer = document.getElementById(`list-${key}`);
+        const currentSearch = (document.querySelector(`#menu-${key} .dropdown-search`)?.value || '').toLowerCase();
         listContainer.innerHTML = '';
-        Object.keys(counts).sort().forEach(val => {
+
+        const allAvailableKeys = Object.keys(counts).sort();
+        let checkedCount = 0;
+
+        allAvailableKeys.forEach(val => {
           const isChecked = filterFields[key].selected.has(val);
+          if (isChecked) checkedCount++;
           const item = document.createElement('label');
           item.className = 'dropdown-item';
+          if (currentSearch && !val.toLowerCase().includes(currentSearch)) {
+            item.style.display = 'none';
+          }
           item.innerHTML = `<input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} onchange="handleCheckboxChange('${key}', '${val}', this.checked)"><span>${val} <small style="color:var(--text-muted)">(${counts[val]})</small></span>`;
           listContainer.appendChild(item);
         });
+
+        // Update Select All Checkbox state
+        const selectAllChk = document.getElementById(`chk-all-${key}`);
+        const selectAllLbl = document.getElementById(`lbl-all-${key}`);
+        if (selectAllChk) {
+          selectAllChk.checked = (checkedCount === allAvailableKeys.length && allAvailableKeys.length > 0);
+          selectAllChk.indeterminate = (checkedCount > 0 && checkedCount < allAvailableKeys.length);
+        }
+        if (selectAllLbl) {
+          selectAllLbl.innerText = `${checkedCount} / ${allAvailableKeys.length}`;
+        }
+
         updateDropdownBtnLabel(key);
+      });
+    }
+
+    // Toggle Select All Options for a specific dropdown
+    function toggleSelectAllDropdown(key) {
+      const eligibleRows = getContextualRows(key);
+      const colField = filterFields[key].col;
+      const allVals = Array.from(new Set(eligibleRows.map(r => String(r[colField] || '(Blank)').trim())));
+
+      const isAllCurrentlySelected = allVals.length > 0 && allVals.every(v => filterFields[key].selected.has(v));
+
+      if (isAllCurrentlySelected) {
+        filterFields[key].selected.clear();
+      } else {
+        allVals.forEach(v => filterFields[key].selected.add(v));
+      }
+      applyFilters();
+    }
+
+    function filterChecklist(key, search) {
+      const s = search.toLowerCase();
+      const container = document.getElementById(`list-${key}`);
+      container.querySelectorAll('.dropdown-item').forEach(lbl => {
+        const txt = lbl.innerText.toLowerCase();
+        lbl.style.display = txt.includes(s) ? 'flex' : 'none';
       });
     }
 
     function handleCheckboxChange(key, val, isChecked) {
       if (isChecked) filterFields[key].selected.add(val);
-      else filterFields[key].delete(val);
+      else filterFields[key].selected.delete(val);
       applyFilters();
     }
 
@@ -671,7 +845,16 @@
       document.getElementById('wtOp').value = 'any';
       document.getElementById('wtVal1').value = '';
       document.getElementById('wtVal2').value = '';
-      handleWtOpChange();
+      document.querySelectorAll('.dropdown-search').forEach(input => input.value = '');
+
+      const v1 = document.getElementById('wtVal1');
+      const v2 = document.getElementById('wtVal2');
+      const span = document.getElementById('wtBetweenSpan');
+      v1.style.display = 'none';
+      v2.style.display = 'none';
+      span.style.display = 'none';
+
+      applyFilters();
     }
 
     function applyFilters() {
