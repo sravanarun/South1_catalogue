@@ -48,23 +48,35 @@
     }
     .auth-btn:hover { background: #0369a1; }
     .auth-err { color: #ef4444; font-size: 0.82rem; margin-top: 10px; display: none; }
+    .auth-loading { color: var(--primary); font-size: 0.82rem; margin-top: 10px; display: none; }
 
     /* Header & Panel */
     .header { width: 100%; max-width: 1250px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
     .header h2 { margin: 0; font-size: 1.35rem; color: var(--primary); }
     .control-panel { width: 100%; max-width: 1250px; background: var(--panel-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+    
     .filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 6px; width: 100%; }
     .filter-box { display: flex; flex-direction: column; gap: 3px; position: relative; }
     .filter-label { font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+
+    /* Search & Wide Boxes */
+    .search-input { background: #090e1a; border: 1px solid var(--border); color: #fff; padding: 7px 10px; border-radius: 6px; font-size: 0.78rem; outline: none; width: 100%; }
+    .search-input:focus { border-color: var(--primary); }
+    .filter-box-wide { grid-column: span 2; min-width: 250px; }
+
     .dropdown-btn { background: #090e1a; color: var(--text); border: 1px solid var(--border); padding: 7px 10px; border-radius: 6px; font-size: 0.78rem; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .dropdown-btn:hover { border-color: var(--primary); }
-    .dropdown-btn::after { content: "▾"; font-size: 0.75rem; margin-left: 6px; color: var(--text-muted); }
+    .dropdown-btn::after { content: "▾"; font-size: 0.75rem; margin-left: 6px; color: var(--text-muted); flex-shrink: 0; }
+    
     .dropdown-menu { display: none; position: absolute; top: calc(100% + 4px); left: 0; min-width: 220px; max-height: 280px; background: #0b1324; border: 1px solid var(--border); border-radius: 8px; z-index: 1000; flex-direction: column; padding: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.8); }
     .dropdown-menu.show { display: flex; }
+    .dropdown-menu-wide { min-width: 380px; max-width: 480px; max-height: 350px; }
     .dropdown-search { background: #090e1a; border: 1px solid var(--border); color: #fff; padding: 6px 8px; border-radius: 4px; font-size: 0.76rem; margin-bottom: 6px; outline: none; }
     .dropdown-list { overflow-y: auto; display: flex; flex-direction: column; gap: 3px; max-height: 190px; }
-    .dropdown-item { display: flex; align-items: center; gap: 6px; font-size: 0.76rem; cursor: pointer; padding: 5px 6px; border-radius: 4px; }
+    .dropdown-menu-wide .dropdown-list { max-height: 270px; }
+    .dropdown-item { display: flex; align-items: flex-start; gap: 6px; font-size: 0.76rem; cursor: pointer; padding: 5px 6px; border-radius: 4px; word-break: break-all; }
     .dropdown-item:hover { background: #1e293b; }
+    .dropdown-item input { margin-top: 2px; flex-shrink: 0; }
 
     .weight-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     .weight-row select, .weight-row input { background: #090e1a; border: 1px solid var(--border); color: var(--text); padding: 6px 8px; border-radius: 6px; font-size: 0.78rem; outline: none; }
@@ -78,7 +90,7 @@
     .main-card { width: 100%; max-width: 1250px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
     .card-top { display: flex; gap: 20px; align-items: flex-start; }
 
-    /* Image Box */
+    /* Image Box with Tap-to-Zoom Cue */
     .image-viewer { 
       width: 500px; 
       height: 500px; 
@@ -91,8 +103,16 @@
       justify-content: center; 
       border: 1px solid var(--border); 
       position: relative; 
+      cursor: zoom-in;
     }
     .image-viewer img { width: 100%; height: 100%; object-fit: contain; }
+    .zoom-hint {
+      position: absolute; bottom: 10px; right: 10px;
+      background: rgba(9, 14, 26, 0.75); color: #fff;
+      padding: 4px 8px; border-radius: 4px; font-size: 0.68rem;
+      pointer-events: none; backdrop-filter: blur(4px);
+      border: 1px solid var(--border); opacity: 0.85;
+    }
     .img-loader { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: #0284c7; font-size: 0.85rem; font-weight: 700; background: #ffffff; width: 100%; height: 100%; z-index: 5; }
     .spinner { width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top-color: #0284c7; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -146,51 +166,130 @@
     .btn-confirmed { background: #dc2626; color: white; }
     .export-btn { background: #2563eb; color: #fff; border: none; padding: 7px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.78rem; }
 
-    /* ========================================================
-       TABLET & MOBILE OPTIMIZATIONS (Screen width < 980px)
-       ======================================================== */
+    /* Floating Lightbox Viewer */
+    .lightbox-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(4, 7, 15, 0.94);
+      backdrop-filter: blur(12px);
+      z-index: 10000;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      user-select: none;
+    }
+    .lightbox-modal.active { display: flex; }
+
+    .lightbox-header {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .lightbox-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #fff;
+      flex-wrap: wrap;
+    }
+    .lightbox-badge {
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--primary);
+      font-family: monospace;
+    }
+    .lightbox-tag {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      background: #131c2e;
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+    .lightbox-tag-wt {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #38bdf8;
+      background: #0c213d;
+      border-color: #0284c7;
+    }
+    .lightbox-close-btn {
+      background: #1e293b;
+      color: #fff;
+      border: 1px solid var(--border);
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+    .lightbox-close-btn:hover { background: #dc2626; border-color: #dc2626; }
+
+    .lightbox-body {
+      width: 100%;
+      max-width: 900px;
+      height: calc(100vh - 160px);
+      max-height: 800px;
+      background: #ffffff;
+      border-radius: 14px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      border: 2px solid var(--border);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    }
+    .lightbox-body img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transition: opacity 0.15s;
+    }
+
+    .lightbox-actions-bar {
+      margin-top: 12px;
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 16px;
+      backdrop-filter: blur(8px);
+    }
+
     @media (max-width: 980px) {
       body { padding: 10px 10px 80px 10px; }
-      
-      /* Stack layout: Image above, details below */
-      .card-top { 
-        flex-direction: column; 
-        align-items: center; 
-        gap: 16px; 
-      }
-      
-      /* Scalable full-width image container for tablets & phones */
-      .image-viewer { 
-        width: 100%; 
-        max-width: 440px; 
-        height: auto; 
-        aspect-ratio: 1 / 1; 
-        min-width: 0; 
-      }
+      .card-top { flex-direction: column; align-items: center; gap: 16px; }
+      .image-viewer { width: 100%; max-width: 440px; height: auto; aspect-ratio: 1 / 1; min-width: 0; }
+      .metric-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+      .filter-grid { grid-template-columns: repeat(2, 1fr); }
+      .filter-box-wide { grid-column: span 2; min-width: 100%; }
+      .dropdown-menu-wide { min-width: 90vw; max-width: 90vw; }
+      .chip-container { max-height: 120px; }
+      .chip { padding: 6px 10px; font-size: 0.78rem; }
+      .btn-nav, .btn-action { padding: 10px 14px; font-size: 0.82rem; }
 
-      /* Clean 2-column or 4-column metric grid */
-      .metric-grid { 
-        grid-template-columns: repeat(2, 1fr); 
-        gap: 6px; 
-      }
-
-      .filter-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      /* Make store chips easily tapable */
-      .chip-container {
-        max-height: 120px;
-      }
-      .chip {
-        padding: 6px 10px;
-        font-size: 0.78rem;
-      }
-
-      .btn-nav, .btn-action {
-        padding: 10px 14px;
-        font-size: 0.82rem;
-      }
+      .lightbox-body { height: calc(100vh - 200px); }
+      .lightbox-actions-bar { padding: 8px 12px; }
+      .lightbox-header { margin-bottom: 6px; }
+      .lightbox-badge { font-size: 1.1rem; }
+      .lightbox-tag { font-size: 0.72rem; padding: 2px 6px; }
     }
   </style>
 </head>
@@ -202,7 +301,8 @@
       <h3>South1 Secured Access</h3>
       <p>Enter the store PIN to decrypt weekly stock data.</p>
       <input type="password" id="passInput" class="auth-input" placeholder="Password" onkeydown="if(event.key==='Enter') decryptAndLoad()">
-      <button class="auth-btn" onclick="decryptAndLoad()">Unlock Catalog</button>
+      <button class="auth-btn" id="unlockBtn" onclick="decryptAndLoad()">Unlock Catalog</button>
+      <div id="authLoading" class="auth-loading">⏳ Fetching encrypted dataset...</div>
       <div id="authErr" class="auth-err">Incorrect PIN. Access Denied.</div>
     </div>
   </div>
@@ -217,10 +317,18 @@
 
   <div class="control-panel">
     <div class="filter-grid">
+      <div class="filter-box">
+        <span class="filter-label">Search SKU / Variant</span>
+        <input type="text" class="search-input" id="skuSearchInput" placeholder="Search SKU..." oninput="handleSkuSearch()">
+      </div>
+
       <div class="filter-box" id="fb-store"><span class="filter-label">Store Code</span><button class="dropdown-btn" onclick="toggleDropdown('store')">All Stores</button><div class="dropdown-menu" id="menu-store"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('store', this.value)"><div class="dropdown-list" id="list-store"></div></div></div>
       <div class="filter-box" id="fb-cat"><span class="filter-label">Product Cat</span><button class="dropdown-btn" onclick="toggleDropdown('cat')">All Categories</button><div class="dropdown-menu" id="menu-cat"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('cat', this.value)"><div class="dropdown-list" id="list-cat"></div></div></div>
       <div class="filter-box" id="fb-cluster"><span class="filter-label">Cluster</span><button class="dropdown-btn" onclick="toggleDropdown('cluster')">All Clusters</button><div class="dropdown-menu" id="menu-cluster"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('cluster', this.value)"><div class="dropdown-list" id="list-cluster"></div></div></div>
-      <div class="filter-box" id="fb-ag"><span class="filter-label">AG Group</span><button class="dropdown-btn" onclick="toggleDropdown('ag')">All AGs</button><div class="dropdown-menu" id="menu-ag"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('ag', this.value)"><div class="dropdown-list" id="list-ag"></div></div></div>
+      
+      <!-- AG Group Expanded -->
+      <div class="filter-box filter-box-wide" id="fb-ag"><span class="filter-label">AG Group</span><button class="dropdown-btn" onclick="toggleDropdown('ag')">All AGs</button><div class="dropdown-menu dropdown-menu-wide" id="menu-ag"><input type="text" class="dropdown-search" placeholder="Search AG..." oninput="filterChecklist('ag', this.value)"><div class="dropdown-list" id="list-ag"></div></div></div>
+      
       <div class="filter-box" id="fb-size"><span class="filter-label">Size</span><button class="dropdown-btn" onclick="toggleDropdown('size')">All Sizes</button><div class="dropdown-menu" id="menu-size"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('size', this.value)"><div class="dropdown-list" id="list-size"></div></div></div>
       <div class="filter-box" id="fb-karat"><span class="filter-label">Karat</span><button class="dropdown-btn" onclick="toggleDropdown('karat')">All Karats</button><div class="dropdown-menu" id="menu-karat"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('karat', this.value)"><div class="dropdown-list" id="list-karat"></div></div></div>
       <div class="filter-box" id="fb-prolif"><span class="filter-label">Prolif</span><button class="dropdown-btn" onclick="toggleDropdown('prolif')">All Prolifs</button><div class="dropdown-menu" id="menu-prolif"><input type="text" class="dropdown-search" placeholder="Search..." oninput="filterChecklist('prolif', this.value)"><div class="dropdown-list" id="list-prolif"></div></div></div>
@@ -254,10 +362,12 @@
 
   <div class="main-card">
     <div class="card-top">
-      <div class="image-viewer">
+      <!-- Tap-To-Zoom Image Box -->
+      <div class="image-viewer" onclick="openLightbox()" title="Click to enlarge image">
         <div class="img-loader" id="imgLoader"><div class="spinner"></div><span>Loading image...</span></div>
         <img id="itemImg" src="" alt="Variant Preview" onload="handleImageSuccess()" onerror="handleImageError()">
         <div id="imgFallback" class="img-fallback">Image not found on catalog server</div>
+        <div class="zoom-hint">🔍 Tap to Zoom</div>
       </div>
 
       <div class="variant-details">
@@ -306,6 +416,34 @@
     <button class="btn-nav" id="nextBtn" onclick="navigateVariant(1)">Next →</button>
   </div>
 
+  <!-- Floating Lightbox Overlay -->
+  <div class="lightbox-modal" id="lightboxModal" onclick="handleLightboxBackdropClick(event)">
+    <div class="lightbox-header">
+      <div class="lightbox-meta">
+        <span class="lightbox-badge" id="modalDesignBadge">---</span>
+        <span class="lightbox-tag" id="modalMetaTag">-</span>
+        <span class="lightbox-tag lightbox-tag-wt" id="modalWtTag">WT: -</span>
+        <span class="lightbox-tag" id="modalIdxTag">0 of 0</span>
+      </div>
+      <button class="lightbox-close-btn" onclick="closeLightbox()" title="Close (Esc)">✕</button>
+    </div>
+
+    <div class="lightbox-body" id="lightboxBody">
+      <div class="img-loader" id="modalImgLoader"><div class="spinner"></div><span>Loading full-size preview...</span></div>
+      <img id="modalImg" src="" alt="Enlarged Variant Preview" onload="handleModalImgSuccess()" onerror="handleModalImgError()">
+      <div id="modalFallback" class="img-fallback"></div>
+    </div>
+
+    <div class="lightbox-actions-bar">
+      <button class="btn-nav" id="modalPrevBtn" onclick="navigateVariant(-1)">← Prev</button>
+      <div class="btn-decision">
+        <button class="btn-action" style="background:#334155; color:#fff;" onclick="navigateVariant(1)">Skip</button>
+        <button class="btn-action btn-confirm" id="modalConfirmBtn" onclick="toggleConfirmCurrent()">✔ Confirm Selection</button>
+      </div>
+      <button class="btn-nav" id="modalNextBtn" onclick="navigateVariant(1)">Next →</button>
+    </div>
+  </div>
+
   <script>
     let rawData = [];
     let filteredGroups = [];
@@ -313,6 +451,8 @@
     let currentIdx = 0;
     let activeStoreFilter = null;
     let encryptedData = "";
+    let dataFetchPromise = null;
+    let isLightboxOpen = false;
 
     const filterFields = {
       store: { col: 'Storecode', selected: new Set() },
@@ -335,19 +475,57 @@
       if (!isShown) menu.classList.add('show');
     }
 
-    window.addEventListener('DOMContentLoaded', async () => {
-      try {
-        const res = await fetch(`data.enc?t=${Date.now()}`);
-        if (res.ok) encryptedData = await res.text();
-      } catch (err) {
-        console.error("Could not fetch data.enc", err);
-      }
+    // Initiate encrypted dataset download immediately
+    window.addEventListener('DOMContentLoaded', () => {
+      dataFetchPromise = fetch(`data.enc?t=${Date.now()}`)
+        .then(res => {
+          if (!res.ok) throw new Error("Could not find data.enc");
+          return res.text();
+        })
+        .then(text => {
+          encryptedData = text;
+          return text;
+        })
+        .catch(err => {
+          console.error(err);
+          return null;
+        });
     });
 
-    function decryptAndLoad() {
+    // Decrypt flow that safely awaits download completion
+    async function decryptAndLoad() {
       const pin = document.getElementById('passInput').value.trim();
       const errBox = document.getElementById('authErr');
+      const loadBox = document.getElementById('authLoading');
+      const btn = document.getElementById('unlockBtn');
+
       errBox.style.display = 'none';
+
+      if (!pin) {
+        errBox.innerText = "Please enter your password / PIN.";
+        errBox.style.display = 'block';
+        return;
+      }
+
+      // If data is still downloading, wait for it
+      if (!encryptedData) {
+        loadBox.style.display = 'block';
+        btn.disabled = true;
+        try {
+          encryptedData = await dataFetchPromise;
+        } catch (e) {
+          console.error(e);
+        } finally {
+          loadBox.style.display = 'none';
+          btn.disabled = false;
+        }
+      }
+
+      if (!encryptedData) {
+        errBox.innerText = "Failed to load data.enc file. Verify repository files.";
+        errBox.style.display = 'block';
+        return;
+      }
 
       try {
         const bytes = CryptoJS.AES.decrypt(encryptedData, pin);
@@ -396,21 +574,34 @@
         applyFilters();
       } catch (e) {
         console.error(e);
+        errBox.innerText = "Incorrect PIN. Access Denied.";
         errBox.style.display = 'block';
       }
+    }
+
+    function handleSkuSearch() {
+      applyFilters();
     }
 
     function getContextualRows(excludeKey = null) {
       const wtOp = document.getElementById('wtOp').value;
       const wt1 = parseFloat(document.getElementById('wtVal1').value);
       const wt2 = parseFloat(document.getElementById('wtVal2').value);
+      const skuSearch = (document.getElementById('skuSearchInput')?.value || '').trim().toLowerCase();
 
       return rawData.filter(r => {
+        if (skuSearch) {
+          const matchVar = r._variant.toLowerCase().includes(skuSearch);
+          const matchDes = r._design.toLowerCase().includes(skuSearch);
+          if (!matchVar && !matchDes) return false;
+        }
+
         for (const key of Object.keys(filterFields)) {
           if (key === excludeKey) continue;
           const sel = filterFields[key].selected;
           if (sel.size > 0 && !sel.has(String(r[filterFields[key].col] || '(Blank)').trim())) return false;
         }
+
         if (wtOp !== 'any' && !isNaN(wt1)) {
           const w = r._wt;
           if (wtOp === 'eq' && Math.abs(w - wt1) > 0.0001) return false;
@@ -454,7 +645,7 @@
 
     function handleCheckboxChange(key, val, isChecked) {
       if (isChecked) filterFields[key].selected.add(val);
-      else filterFields[key].selected.delete(val);
+      else filterFields[key].delete(val);
       applyFilters();
     }
 
@@ -476,6 +667,7 @@
 
     function resetAllFilters() {
       Object.keys(filterFields).forEach(key => filterFields[key].selected.clear());
+      document.getElementById('skuSearchInput').value = '';
       document.getElementById('wtOp').value = 'any';
       document.getElementById('wtVal1').value = '';
       document.getElementById('wtVal2').value = '';
@@ -570,6 +762,8 @@
       renderDetailedTray(cur);
       document.getElementById('prevBtn').disabled = currentIdx === 0;
       document.getElementById('nextBtn').disabled = currentIdx === filteredGroups.length - 1;
+
+      if (isLightboxOpen) syncLightboxContent();
     }
 
     function updateStoreChipsUI() {
@@ -620,6 +814,106 @@
       `;
     }
 
+    /* Lightbox Modal Operations */
+    function openLightbox() {
+      if (filteredGroups.length === 0) return;
+      isLightboxOpen = true;
+      document.getElementById('lightboxModal').classList.add('active');
+      syncLightboxContent();
+    }
+
+    function closeLightbox() {
+      isLightboxOpen = false;
+      document.getElementById('lightboxModal').classList.remove('active');
+    }
+
+    function handleLightboxBackdropClick(e) {
+      if (e.target.id === 'lightboxModal') {
+        closeLightbox();
+      }
+    }
+
+    function syncLightboxContent() {
+      if (!isLightboxOpen || filteredGroups.length === 0) return;
+
+      const curGroup = filteredGroups[currentIdx];
+      const dCode = (curGroup.design || '').trim().toUpperCase();
+
+      document.getElementById('modalDesignBadge').innerText = dCode;
+      document.getElementById('modalMetaTag').innerText = `${curGroup.rows[0]._cat} • ${curGroup.rows[0]._karat}K`;
+      
+      const weights = curGroup.rows.map(r => r._wt);
+      const minWt = Math.min(...weights).toFixed(3);
+      const maxWt = Math.max(...weights).toFixed(3);
+      document.getElementById('modalWtTag').innerText = (minWt === maxWt) ? `WT: ${minWt} g` : `WT: ${minWt} - ${maxWt} g`;
+      document.getElementById('modalIdxTag').innerText = `${currentIdx + 1} of ${filteredGroups.length}`;
+
+      const modalImg = document.getElementById('modalImg');
+      const modalLoader = document.getElementById('modalImgLoader');
+      const modalFallback = document.getElementById('modalFallback');
+
+      modalImg.style.opacity = '0';
+      modalImg.style.display = 'block';
+      modalFallback.style.display = 'none';
+      modalLoader.style.display = 'flex';
+
+      modalImg.dataset.retried = "0";
+      modalImg.src = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${dCode}.jpg`;
+
+      const isConf = selectedVariantsMap.has(curGroup.variant);
+      const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+      modalConfirmBtn.innerText = isConf ? "✖ Remove Selection" : "✔ Confirm Selection";
+      modalConfirmBtn.className = isConf ? "btn-action btn-confirmed" : "btn-action btn-confirm";
+
+      document.getElementById('modalPrevBtn').disabled = (currentIdx === 0);
+      document.getElementById('modalNextBtn').disabled = (currentIdx === filteredGroups.length - 1);
+    }
+
+    function handleModalImgSuccess() {
+      document.getElementById('modalImgLoader').style.display = 'none';
+      document.getElementById('modalImg').style.opacity = '1';
+    }
+
+    function handleModalImgError() {
+      const img = document.getElementById('modalImg');
+      const curGroup = filteredGroups[currentIdx];
+      const dCode = (curGroup?.design || '').trim().toUpperCase();
+
+      if (img.dataset.retried === "0") {
+        img.dataset.retried = "1";
+        img.src = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${dCode}.JPG`;
+        return;
+      }
+
+      document.getElementById('modalImgLoader').style.display = 'none';
+      img.style.display = 'none';
+      const fallback = document.getElementById('modalFallback');
+      fallback.style.display = 'flex';
+      fallback.style.flexDirection = 'column';
+      fallback.style.alignItems = 'center';
+      fallback.style.justifyContent = 'center';
+      fallback.innerHTML = `
+        <div style="font-size: 3rem; margin-bottom: 6px;">🖼️</div>
+        <div style="font-weight: 700; color: #334155;">No Catalog Image Found</div>
+        <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px;">Design: ${dCode || 'N/A'}</div>
+      `;
+    }
+
+    /* Swipe Gesture Support */
+    let touchStartX = 0;
+    let touchEndX = 0;
+    const lightboxBody = document.getElementById('lightboxBody');
+
+    lightboxBody.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    lightboxBody.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      if (touchEndX < touchStartX - 50) navigateVariant(1);
+      if (touchEndX > touchStartX + 50) navigateVariant(-1);
+    }, { passive: true });
+
     function toggleConfirmCurrent() {
       const cur = filteredGroups[currentIdx];
       if (selectedVariantsMap.has(cur.variant)) selectedVariantsMap.delete(cur.variant);
@@ -629,8 +923,28 @@
 
     function navigateVariant(s) {
       const n = currentIdx + s;
-      if (n >= 0 && n < filteredGroups.length) { currentIdx = n; activeStoreFilter = null; updateUI(); }
+      if (n >= 0 && n < filteredGroups.length) { 
+        currentIdx = n; 
+        activeStoreFilter = null; 
+        updateUI(); 
+      }
     }
+
+    window.addEventListener('keydown', (e) => {
+      if (filteredGroups.length === 0 || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        navigateVariant(1);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        navigateVariant(-1);
+      } else if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        toggleConfirmCurrent();
+      } else if (e.key === 'Escape' && isLightboxOpen) {
+        closeLightbox();
+      }
+    });
 
     function exportSelected() {
       if (selectedVariantsMap.size === 0) { alert("No variants confirmed yet."); return; }
