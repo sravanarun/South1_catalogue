@@ -92,8 +92,13 @@
     .weight-row select { width: 120px; }
     .weight-row input { width: 75px; }
 
-    .stats-bar { width: 100%; max-width: 1250px; display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 10px; font-size: 0.78rem; color: var(--text-muted); flex-wrap: wrap; gap: 6px; }
+    /* Bulk Selector and Stats Bar */
+    .stats-bar { width: 100%; max-width: 1250px; display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 10px; font-size: 0.78rem; color: var(--text-muted); flex-wrap: wrap; gap: 8px; }
     .stats-bar b { color: var(--primary); }
+    .bulk-btn-group { display: flex; gap: 6px; align-items: center; }
+    .btn-bulk { background: #1e293b; border: 1px solid var(--border); color: #cbd5e1; padding: 4px 8px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: 600; }
+    .btn-bulk:hover { border-color: var(--primary); color: #fff; }
+    .btn-bulk-danger:hover { border-color: #ef4444; color: #ef4444; }
 
     /* Responsive Main Card */
     .main-card { width: 100%; max-width: 1250px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
@@ -400,10 +405,17 @@
     </div>
   </div>
 
+  <!-- Bulk Selection Toolbar and Stats -->
   <div class="stats-bar">
     <div>Filtered Unique Variants: <b id="statVariantCount">0</b> <span id="statTotalUnits" style="color:var(--text-muted); font-size:0.78rem;"></span></div>
     <div>Viewing: <b id="statCurIdx">0</b> of <span id="statMaxIdx">0</span></div>
-    <div>Selected: <b id="statSelectedCount">0</b></div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div>Selected: <b id="statSelectedCount">0</b></div>
+      <div class="bulk-btn-group">
+        <button class="btn-bulk" onclick="selectAllFilteredVariants()" title="Select and confirm all currently filtered variants">Select Filtered</button>
+        <button class="btn-bulk btn-bulk-danger" onclick="unselectAllVariants()" title="Clear all confirmed selections">Clear All</button>
+      </div>
+    </div>
   </div>
 
   <div class="main-card">
@@ -508,10 +520,12 @@
       <div class="pdf-field-selector">
         <div class="pdf-field-title">Visual PDF Card Attributes to Include:</div>
         <div class="pdf-fields-grid">
-          <label class="pdf-chk-label"><input type="checkbox" id="pdfChkVariant" checked> SKU / Variant</label>
+          <label class="pdf-chk-label"><input type="checkbox" id="pdfChkVariant"> SKU / Variant</label>
+          <!-- Only Weight Range is checked by default -->
           <label class="pdf-chk-label"><input type="checkbox" id="pdfChkWt" checked> Weight Range (WT)</label>
-          <label class="pdf-chk-label"><input type="checkbox" id="pdfChkCat" checked> Product Category</label>
-          <label class="pdf-chk-label"><input type="checkbox" id="pdfChkAg" checked> AG Group</label>
+          <label class="pdf-chk-label"><input type="checkbox" id="pdfChkCat"> Product Category</label>
+          <label class="pdf-chk-label"><input type="checkbox" id="pdfChkAg"> AG Group</label>
+          <label class="pdf-chk-label"><input type="checkbox" id="pdfChkCluster"> Cluster</label>
           <label class="pdf-chk-label"><input type="checkbox" id="pdfChkSize"> Size(s)</label>
           <label class="pdf-chk-label"><input type="checkbox" id="pdfChkKarat"> Karat &amp; Prolif</label>
         </div>
@@ -1069,6 +1083,21 @@
       updateUI();
     }
 
+    /* Bulk Selection Actions */
+    function selectAllFilteredVariants() {
+      if (filteredGroups.length === 0) return;
+      filteredGroups.forEach(grp => {
+        selectedVariantsMap.set(grp.variant, grp.rows);
+      });
+      updateUI();
+    }
+
+    function unselectAllVariants() {
+      if (selectedVariantsMap.size === 0) return;
+      selectedVariantsMap.clear();
+      updateUI();
+    }
+
     function navigateVariant(s) {
       const n = currentIdx + s;
       if (n >= 0 && n < filteredGroups.length) { 
@@ -1132,6 +1161,7 @@
       const incWt = document.getElementById('pdfChkWt').checked;
       const incCat = document.getElementById('pdfChkCat').checked;
       const incAg = document.getElementById('pdfChkAg').checked;
+      const incCluster = document.getElementById('pdfChkCluster').checked;
       const incSize = document.getElementById('pdfChkSize').checked;
       const incKarat = document.getElementById('pdfChkKarat').checked;
 
@@ -1219,6 +1249,10 @@
         if (incAg) {
           const agTrimmed = (firstRow._ag || '-').substring(0, 22);
           pdf.text(`AG: ${agTrimmed}`, x + 6, col1Y);
+          col1Y += 4.5;
+        }
+        if (incCluster) {
+          pdf.text(`Cluster: ${firstRow._cluster || '-'}`, x + 6, col1Y);
           col1Y += 4.5;
         }
         if (incSize) {
