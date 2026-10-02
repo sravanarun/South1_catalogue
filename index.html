@@ -122,7 +122,7 @@
     }
     .image-viewer img { width: 100%; height: 100%; object-fit: contain; }
     .zoom-hint {
-      position: absolute; bottom: 10px; right: 10px;
+      position: absolute bottom: 10px; right: 10px;
       background: rgba(9, 14, 26, 0.75); color: #fff;
       padding: 4px 8px; border-radius: 4px; font-size: 0.68rem;
       pointer-events: none; backdrop-filter: blur(4px);
@@ -255,7 +255,7 @@
 
   <div class="control-panel">
     <div class="filter-grid">
-      <!-- Universal Live Search: Pinpoint Weights, SKUs, Stores, Categories, Clusters, and AGs -->
+      <!-- Universal Live Search: Exact Reverse Lookup for SKU, Exact WT, AG, Store, etc. -->
       <div class="filter-box">
         <span class="filter-label">Search (SKU, Exact WT, AG, Store...)</span>
         <input type="text" class="search-input" id="skuSearchInput" placeholder="e.g. 4.250, Ring, or 50D2..." oninput="handleUniversalSearch()">
@@ -694,7 +694,7 @@
       applyFilters();
     }
 
-    /* Precision Search Engine: Pinpoints Exact Weight Reverse Lookups Alongside Words */
+    /* Exact Search Engine: Strict Exact Weight Match (No Threshold) Alongside Keywords */
     function getContextualRows(excludeKey = null) {
       const wtOp = document.getElementById('wtOp').value;
       const wt1 = parseFloat(document.getElementById('wtVal1').value);
@@ -702,15 +702,14 @@
       const rawInput = (document.getElementById('skuSearchInput')?.value || '').trim();
 
       const textTokens = [];
-      const weightTargets = [];
+      const exactWeightTokens = [];
 
       if (rawInput.length > 0) {
         const tokens = rawInput.toLowerCase().split(/\s+/).filter(Boolean);
         tokens.forEach(tok => {
-          const num = parseFloat(tok);
           // If the token is pure numeric with optional decimals (e.g., "4.25" or "18.300")
-          if (!isNaN(num) && /^[0-9]+(\.[0-9]+)?$/.test(tok)) {
-            weightTargets.push(num);
+          if (/^[0-9]+(\.[0-9]+)?$/.test(tok)) {
+            exactWeightTokens.push(tok);
           } else {
             textTokens.push(tok);
           }
@@ -718,18 +717,22 @@
       }
 
       return rawData.filter(r => {
-        // 1. Text Field Matching (SKU, AG, Store, Category, Cluster, Karat)
+        // 1. Keyword Text Search (SKU, Design, Store, Category, Cluster, AG, Karat)
         if (textTokens.length > 0) {
           const searchableText = `${r._variant} ${r._design} ${r._store} ${r._cat} ${r._cluster} ${r._ag} ${r._karat}K ${r._size}`.toLowerCase();
           const allTextMatch = textTokens.every(term => searchableText.includes(term));
           if (!allTextMatch) return false;
         }
 
-        // 2. Exact Weight Reverse Pinpoint (Matches within tight ±0.005g threshold)
-        if (weightTargets.length > 0) {
-          const w = r._wt;
-          const isWeightPinpointed = weightTargets.some(target => Math.abs(w - target) <= 0.005);
-          if (!isWeightPinpointed) return false;
+        // 2. Strict Exact Weight Match (Either starting weight, ending weight, or exact lot weight)
+        if (exactWeightTokens.length > 0) {
+          const wStr = r._wt.toFixed(3);
+          const wRawStr = String(r._wt);
+          const allWeightMatch = exactWeightTokens.every(tok => {
+            const formattedTok = parseFloat(tok).toFixed(3);
+            return wStr === formattedTok || wRawStr === tok;
+          });
+          if (!allWeightMatch) return false;
         }
 
         // 3. Dropdown Checklist Filters
@@ -739,7 +742,7 @@
           if (sel.size > 0 && !sel.has(String(r[filterFields[key].col] || '(Blank)').trim())) return false;
         }
 
-        // 4. Standalone Dedicated Weight Filter (Preserved for broad range browsing)
+        // 4. Standalone Dedicated Weight Filter (Preserved for general range queries)
         if (wtOp !== 'any' && !isNaN(wt1)) {
           const w = r._wt;
           if (wtOp === 'eq' && Math.abs(w - wt1) > 0.0001) return false;
