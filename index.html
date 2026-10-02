@@ -61,6 +61,7 @@
     .filter-box { display: flex; flex-direction: column; gap: 3px; position: relative; }
     .filter-label { font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
 
+    /* Search & Wide Boxes */
     .search-input { background: #090e1a; border: 1px solid var(--border); color: #fff; padding: 7px 10px; border-radius: 6px; font-size: 0.78rem; outline: none; width: 100%; }
     .search-input:focus { border-color: var(--primary); }
     .filter-box-wide { grid-column: span 2; min-width: 250px; }
@@ -73,6 +74,7 @@
     .dropdown-menu.show { display: flex; }
     .dropdown-menu-wide { min-width: 440px; max-width: 520px; max-height: 380px; }
 
+    /* Dropdown Toolbar */
     .dropdown-toolbar { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
     .select-all-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; color: var(--primary); cursor: pointer; padding: 2px 4px; }
     .select-all-row:hover { background: #1e293b; border-radius: 4px; }
@@ -92,7 +94,7 @@
     .weight-row select { width: 120px; }
     .weight-row input { width: 75px; }
 
-    /* Bulk Selector and Stats Bar */
+    /* Stats Bar and Bulk Selectors */
     .stats-bar { width: 100%; max-width: 1250px; display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 10px; font-size: 0.78rem; color: var(--text-muted); flex-wrap: wrap; gap: 8px; }
     .stats-bar b { color: var(--primary); }
     .bulk-btn-group { display: flex; gap: 6px; align-items: center; }
@@ -253,9 +255,10 @@
 
   <div class="control-panel">
     <div class="filter-grid">
+      <!-- Universal Live Search: Pinpoint Weights, SKUs, Stores, Categories, Clusters, and AGs -->
       <div class="filter-box">
-        <span class="filter-label">Search (SKU, AG, Store, etc.)</span>
-        <input type="text" class="search-input" id="skuSearchInput" placeholder="Search..." oninput="handleUniversalSearch()">
+        <span class="filter-label">Search (SKU, Exact WT, AG, Store...)</span>
+        <input type="text" class="search-input" id="skuSearchInput" placeholder="e.g. 4.250, Ring, or 50D2..." oninput="handleUniversalSearch()">
       </div>
 
       <div class="filter-box" id="fb-store">
@@ -691,25 +694,52 @@
       applyFilters();
     }
 
+    /* Precision Search Engine: Pinpoints Exact Weight Reverse Lookups Alongside Words */
     function getContextualRows(excludeKey = null) {
       const wtOp = document.getElementById('wtOp').value;
       const wt1 = parseFloat(document.getElementById('wtVal1').value);
       const wt2 = parseFloat(document.getElementById('wtVal2').value);
-      const searchTerms = (document.getElementById('skuSearchInput')?.value || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+      const rawInput = (document.getElementById('skuSearchInput')?.value || '').trim();
+
+      const textTokens = [];
+      const weightTargets = [];
+
+      if (rawInput.length > 0) {
+        const tokens = rawInput.toLowerCase().split(/\s+/).filter(Boolean);
+        tokens.forEach(tok => {
+          const num = parseFloat(tok);
+          // If the token is pure numeric with optional decimals (e.g., "4.25" or "18.300")
+          if (!isNaN(num) && /^[0-9]+(\.[0-9]+)?$/.test(tok)) {
+            weightTargets.push(num);
+          } else {
+            textTokens.push(tok);
+          }
+        });
+      }
 
       return rawData.filter(r => {
-        if (searchTerms.length > 0) {
-          const searchableText = `${r._variant} ${r._design} ${r._store} ${r._cat} ${r._cluster} ${r._ag}`.toLowerCase();
-          const allMatch = searchTerms.every(term => searchableText.includes(term));
-          if (!allMatch) return false;
+        // 1. Text Field Matching (SKU, AG, Store, Category, Cluster, Karat)
+        if (textTokens.length > 0) {
+          const searchableText = `${r._variant} ${r._design} ${r._store} ${r._cat} ${r._cluster} ${r._ag} ${r._karat}K ${r._size}`.toLowerCase();
+          const allTextMatch = textTokens.every(term => searchableText.includes(term));
+          if (!allTextMatch) return false;
         }
 
+        // 2. Exact Weight Reverse Pinpoint (Matches within tight ±0.005g threshold)
+        if (weightTargets.length > 0) {
+          const w = r._wt;
+          const isWeightPinpointed = weightTargets.some(target => Math.abs(w - target) <= 0.005);
+          if (!isWeightPinpointed) return false;
+        }
+
+        // 3. Dropdown Checklist Filters
         for (const key of Object.keys(filterFields)) {
           if (key === excludeKey) continue;
           const sel = filterFields[key].selected;
           if (sel.size > 0 && !sel.has(String(r[filterFields[key].col] || '(Blank)').trim())) return false;
         }
 
+        // 4. Standalone Dedicated Weight Filter (Preserved for broad range browsing)
         if (wtOp !== 'any' && !isNaN(wt1)) {
           const w = r._wt;
           if (wtOp === 'eq' && Math.abs(w - wt1) > 0.0001) return false;
@@ -1136,7 +1166,7 @@
       document.getElementById('exportModal').classList.remove('active');
     }
 
-    /* Option 1: Existing Excel Export */
+    /* Option 1: Excel Export */
     function exportSelectedExcel() {
       closeExportModal();
       const rows = [];
