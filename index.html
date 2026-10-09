@@ -907,10 +907,15 @@
       img.dataset.retried = "0";
       img.src = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${dCode}.jpg`;
 
+      // Cancel previous preload to free up the browser's network queue
+      if (window._imgPreloader) {
+        window._imgPreloader.src = '';
+      }
+      
       if (filteredGroups[currentIdx + 1]) {
         const nextD = (filteredGroups[currentIdx + 1].design || '').trim().toUpperCase();
-        const p = new Image();
-        p.src = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${nextD}.jpg`;
+        window._imgPreloader = new Image();
+        window._imgPreloader.src = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${nextD}.jpg`;
       }
 
       document.getElementById('dispVariant').innerText = cur.variant;
@@ -1241,17 +1246,25 @@
         // 2. Load & Draw Product Image
         const firstRow = grp[0];
         const dCode = (firstRow._design || '').trim().toUpperCase();
-        const imgUrl = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${dCode}.jpg`;
+        const baseUrl = `https://jewbridge.titanjew.in/CatalogImages/api/ImageFetch/?Type=ProductImages&ImageName=${dCode}`;
 
         try {
-          const base64Img = await fetchImageAsBase64(imgUrl);
+          // Attempt lowercase .jpg first
+          const base64Img = await fetchImageAsBase64(`${baseUrl}.jpg`);
           pdf.addImage(base64Img, 'JPEG', x + imgOffsetX, y + 4, imgSize, imgSize);
-        } catch (e) {
-          pdf.setFillColor(248, 250, 252);
-          pdf.rect(x + imgOffsetX, y + 4, imgSize, imgSize, 'F');
-          pdf.setFontSize(8);
-          pdf.setTextColor(148, 163, 184);
-          pdf.text("Image Unavailable", x + cardWidth / 2, y + 44, { align: 'center' });
+        } catch (e1) {
+          try {
+            // Fallback to uppercase .JPG (Matches what the UI does)
+            const base64Img2 = await fetchImageAsBase64(`${baseUrl}.JPG`);
+            pdf.addImage(base64Img2, 'JPEG', x + imgOffsetX, y + 4, imgSize, imgSize);
+          } catch (e2) {
+            // Both failed, draw blank placeholder
+            pdf.setFillColor(248, 250, 252);
+            pdf.rect(x + imgOffsetX, y + 4, imgSize, imgSize, 'F');
+            pdf.setFontSize(8);
+            pdf.setTextColor(148, 163, 184);
+            pdf.text("Image Unavailable", x + cardWidth / 2, y + 44, { align: 'center' });
+          }
         }
 
         // 3. Divider Line
@@ -1320,19 +1333,54 @@
     }
 
     // Helper to safely load external images onto canvas for jsPDF
-    function fetchImageAsBase64(url) {
+    function fetchImageAsBase64(url, timeoutMs = 15000) {
       return new Promise((resolve, reject) => {
         const img = new Image();
+        let timeoutId;
         img.crossOrigin = 'Anonymous';
+
         img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth || 400;
-          canvas.height = img.naturalHeight || 400;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL('image/jpeg', 0.85));
+          clearTimeout(timeoutId);
+          try {
+            const canvas = document.createElement('canvas');
+            
+            // Downscale image to a maximum of 600px to prevent PDF memory crashes
+            const MAX_DIM = 600;
+            let w = img.naturalWidth || 400;
+            let h = img.naturalHeight || 400;
+
+            if (w > MAX_DIM || h > MAX_DIM) {
+              const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
+              w = w * ratio;
+              h = h * ratio;
+            }
+
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            
+            // Fill white background just in case image has transparency
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(img, 0, 0, w, h);
+            
+            resolve(canvas.toDataURL('image/jpeg', 0.80)); // 80% quality is perfect for PDF
+          } catch (e) {
+            reject(e);
+          }
         };
-        img.onerror = () => reject(new Error('Image fetch failed'));
+
+        img.onerror = () => {
+          clearTimeout(timeoutId);
+          reject(new Error('Image fetch failed'));
+        };
+
+        // Prevent the PDF export from hanging infinitely if network is slow
+        timeoutId = setTimeout(() => {
+          img.src = ''; 
+          reject(new Error('Image fetch timeout'));
+        }, timeoutMs);
+
         img.src = url;
       });
     }
